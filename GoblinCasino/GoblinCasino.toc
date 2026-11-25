@@ -1,0 +1,26 @@
+## Interface: 16001
+## Title: |cffffd84dGoblin|r |cffff3fa4Casino|r
+## Notes: Colorful gold-wagering games for your raid, party or guild. /casino
+## Version: 0.3.1
+## IconTexture: Interface\Icons\INV_Misc_Coin_01
+## SavedVariables: GoblinCasinoDB
+## AddonCompartmentFunc: GoblinCasino_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: GoblinCasino_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: GoblinCasino_OnAddonCompartmentLeave
+## X-License: Code: MIT. Bungee and Rubik fonts: SIL Open Font License.
+
+Core\Init.lua
+Core\Util.lua
+Core\Comm.lua
+Core\Rolls.lua
+UI\Theme.lua
+UI\Widgets.lua
+Games\Jackpot.lua
+Games\Derby.lua
+UI\Minimap.lua
+UI\Wheel.lua
+UI\WheelView.lua
+UI\DerbyView.lua
+UI\HistoryView.lua
+UI\ModelTest.lua
+UI\MainFrame.lua
