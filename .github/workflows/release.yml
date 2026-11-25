@@ -1,0 +1,105 @@
+# Every push to main (a merge from dev) publishes a release:
+#   1. reads "## Version" from GoblinCasino.toc (must be new: the tag v<version> can't exist yet),
+#   2. zips the GoblinCasino folder,
+#   3. uploads it to CurseForge (project id from "## X-Curse-Project-ID"),
+#   4. tags the commit and creates a GitHub release with the same zip.
+# Needs the secret CF_API_KEY (a CurseForge API token) in the GitHub environment "curseforge".
+# Optional variable CF_GAME_VERSION (same environment): CurseForge game version name(s) or id(s), comma
+# separated, when the version can't be found from the TOC's "## Interface" number.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # releases only ever come from main (also when started by hand from the Actions tab)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # CF_API_KEY (and CF_GAME_VERSION, if needed) live in this GitHub environment
+    environment:
+      name: curseforge
+      url: https://www.curseforge.com/wow/addons/goblin-casino
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version from the TOC
+        id: meta
+        run: |
+          toc=GoblinCasino/GoblinCasino.toc
+          field() { sed -n "s/^## $1:[[:space:]]*//p" "$toc" | tr -d '\r' | head -n1; }
+          version=$(field Version)
+          interface=$(field Interface | cut -d, -f1 | tr -d ' ')
+          project=$(field X-Curse-Project-ID)
+          if [ -z "$version" ] || [ -z "$project" ]; then
+            echo "::error::$toc needs '## Version' and '## X-Curse-Project-ID'."
+            exit 1
+          fi
+          tag="v$version"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::Version $version was already released (tag $tag exists). Raise '## Version' in $toc on dev, then merge to main again."
+            exit 1
+          fi
+          {
+            echo "version=$version"
+            echo "interface=$interface"
+            echo "project=$project"
+            echo "tag=$tag"
+            echo "zip=dist/GoblinCasino-$version.zip"
+          } >> "$GITHUB_OUTPUT"
+          echo "Releasing Goblin Casino $version (interface $interface, CurseForge project $project)"
+
+      - name: Build the zip
+        run: |
+          mkdir -p dist
+          zip -r -X "${{ steps.meta.outputs.zip }}" GoblinCasino -x '*.DS_Store' -x '*Thumbs.db'
+          unzip -l "${{ steps.meta.outputs.zip }}"
+
+      - name: Changelog
+        run: |
+          prev=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          range=${prev:+$prev..HEAD}
+          {
+            echo "## Goblin Casino ${{ steps.meta.outputs.version }}"
+            echo
+            git log --no-merges --pretty='- %s' $range
+          } > dist/CHANGELOG.md
+          cat dist/CHANGELOG.md
+
+      - name: Upload to CurseForge
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          CF_GAME_VERSION: ${{ vars.CF_GAME_VERSION }}
+        run: |
+          if [ -z "$CF_API_KEY" ]; then
+            echo "::error::The secret CF_API_KEY is missing in the environment curseforge (Settings > Environments > curseforge)."
+            exit 1
+          fi
+          python3 .github/scripts/curseforge_upload.py \
+            --project "${{ steps.meta.outputs.project }}" \
+            --interface "${{ steps.meta.outputs.interface }}" \
+            --version "${{ steps.meta.outputs.version }}" \
+            --zip "${{ steps.meta.outputs.zip }}" \
+            --changelog dist/CHANGELOG.md
+
+      - name: Tag and GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git tag "${{ steps.meta.outputs.tag }}"
+          git push origin "${{ steps.meta.outputs.tag }}"
+          gh release create "${{ steps.meta.outputs.tag }}" "${{ steps.meta.outputs.zip }}" \
+            --title "Goblin Casino ${{ steps.meta.outputs.version }}" \
+            --notes-file dist/CHANGELOG.md

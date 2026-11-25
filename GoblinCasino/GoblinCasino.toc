@@ -4,6 +4,7 @@
 ## Version: 0.3.1
 ## IconTexture: Interface\Icons\INV_Misc_Coin_01
 ## SavedVariables: GoblinCasinoDB
+## X-Curse-Project-ID: 1830691
 ## AddonCompartmentFunc: GoblinCasino_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: GoblinCasino_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: GoblinCasino_OnAddonCompartmentLeave
