@@ -22,6 +22,8 @@ concurrency:
 
 jobs:
   release:
+    # releases only ever come from main (also when started by hand from the Actions tab)
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # CF_API_KEY (and CF_GAME_VERSION, if needed) live in this GitHub environment
     environment:
