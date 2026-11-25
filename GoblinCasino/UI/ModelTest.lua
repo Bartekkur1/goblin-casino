@@ -1,5 +1,5 @@
--- /casino models: a test window that shows candidate murloc models side by side, running, so we can
--- see which display IDs / creature IDs work on this client before using them in the derby.
+-- /casino models: a test window that shows candidate models side by side, so we can see which
+-- display IDs / creature IDs work on this client before using them in a game.
 local ADDON, ns = ...
 local T = ns.Theme
 local C, hex = T.C, T.hex
@@ -8,13 +8,14 @@ local MT = {}
 ns.ModelTest = MT
 
 -- Candidates. "D" = creature display ID (SetDisplayInfo), "C" = creature/NPC ID (SetCreature).
--- From memory of classic murlocs; some may be wrong, that's what this window is for.
+-- From memory; some may be wrong, that's what this window is for.
 local CANDIDATES = {
+	-- the ogre croupier of Ogre's Wheel (WheelView's OGRES, in the same order)
+	{ "C", 5229 }, { "C", 1178 }, { "C", 2562 }, { "C", 11501 }, { "C", 18069 },
 	{ "D", 8570 }, { "D", 11380 }, -- Onyxia, Nefarian (for Onyxia's Deep Breath)
+	-- murlocs and guests of the derby
 	{ "D", 441 }, { "D", 478 }, { "D", 486 }, { "D", 487 }, { "D", 506 }, { "D", 507 }, { "D", 524 },
 	{ "D", 527 }, { "D", 535 }, { "D", 545 }, { "D", 548 }, { "D", 549 }, { "D", 616 }, { "D", 655 },
-	{ "C", 46 }, { "C", 126 }, { "C", 127 }, { "C", 171 }, { "C", 456 }, { "C", 458 }, { "C", 513 },
-	{ "C", 515 }, { "C", 517 }, { "C", 578 }, { "C", 732 }, { "C", 1767 },
 }
 
 local COLS, CELL_W, CELL_H = 7, 108, 118
