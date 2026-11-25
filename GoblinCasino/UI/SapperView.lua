@@ -108,7 +108,7 @@ function View.Create(parent, width, height)
 
 	-- seats: one per player, around an ellipse
 	local seats = {}
-	local modelW, modelH = 96, 96
+	local modelH = 96
 	local function Seat(i)
 		if seats[i] then return seats[i] end
 		local seat = CreateFrame("Frame", nil, stage)
@@ -178,7 +178,7 @@ function View.Create(parent, width, height)
 	local function Layout(names)
 		local n = #names
 		local size = n <= 4 and 104 or (n <= 6 and 92 or (n <= 9 and 78 or 58))
-		modelW, modelH = size, size
+		modelH = size
 		local rx = width / 2 - size / 2 - 40
 		local ry = STAGE_H / 2 - size / 2 - 22
 		-- the local player sits at the bottom, the others clockwise from there

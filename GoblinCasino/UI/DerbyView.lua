@@ -352,7 +352,6 @@ function View.Create(parent, width, height)
 	local function Animate(round)
 		if not script then return end
 		local t = RaceTime(round)
-		local now = GetTime()
 		for i, name in ipairs(runners) do
 			local lane = lanes[i]
 			local curve = script.curves[name]

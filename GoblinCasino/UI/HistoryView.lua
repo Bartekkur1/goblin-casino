@@ -7,7 +7,7 @@ local C, hex = T.C, T.hex
 local View = {}
 ns.HistoryView = View
 
-local RED, ORANGE, DIM = hex("ff6b6b"), hex("ffb347"), hex("9d8fbf")
+local RED, DIM = hex("ff6b6b"), hex("9d8fbf")
 local LEFT_W = 452
 local GAME_COLOR = { wheel = C.lilac, derby = C.teal, sapper = C.orange or hex("ff9a3c"), onyxia = hex("ff5c5c") }
 
