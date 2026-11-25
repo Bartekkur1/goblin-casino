@@ -20,10 +20,12 @@ UI\Widgets.lua
 UI\LogWindow.lua
 Games\Jackpot.lua
 Games\Derby.lua
+Games\Sapper.lua
 UI\Minimap.lua
 UI\Wheel.lua
 UI\WheelView.lua
 UI\DerbyView.lua
+UI\SapperView.lua
 UI\HistoryView.lua
 UI\ModelTest.lua
 UI\MainFrame.lua

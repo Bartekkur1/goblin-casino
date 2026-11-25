@@ -26,6 +26,21 @@ local GAMES = {
 		onPlay = function() Main:StartGame("derby") end,
 	},
 	{
+		key = "sapper",
+		title = "Hot Sapper",
+		desc = "A lit sapper charge flies round the circle, faster and faster. Whoever holds it when it blows pays everyone.",
+		icon = {
+			"Interface\\Icons\\INV_Gizmo_SuperSapperCharge",
+			"Interface\\Icons\\INV_Misc_Bomb_08",
+			"Interface\\Icons\\INV_Misc_Bomb_05",
+			"Interface\\Icons\\INV_Misc_Bomb_02",
+			"Interface\\Icons\\Spell_Fire_SelfDestruct",
+		},
+		accent = C.orange, status = "READY", statusColor = C.green,
+		meta = "Same entry  ·  one pays, everyone else wins",
+		onPlay = function() Main:StartGame("sapper") end,
+	},
+	{
 		key = "wheel",
 		title = "Ogre's Wheel",
 		desc = "Bigger stake, bigger slice of the wheel. One spin, and the winner takes the whole pool.",
@@ -478,9 +493,11 @@ local function Create()
 	wheel:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
 	local derby = ns.DerbyView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
 	derby:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
+	local sapper = ns.SapperView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
+	sapper:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
 	local history = ns.HistoryView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
 	history:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
-	f.views = { lobby = lobby, wheel = wheel, derby = derby, history = history }
+	f.views = { lobby = lobby, wheel = wheel, derby = derby, sapper = sapper, history = history }
 	J.OnChange(function() Main:UpdateLobby() end)
 
 	f:RegisterEvent("PLAYER_MONEY")
@@ -600,7 +617,7 @@ function Main:UpdateLobby()
 			or "Invite your friends to a party or raid to play. Practice with bots: /casino practice")
 	end
 	-- a game screen without a round goes back to the lobby (history stays open)
-	if (self.view == "wheel" or self.view == "derby") and not J.round then self:ShowView("lobby") end
+	if self.view ~= "lobby" and self.view ~= "history" and not J.round then self:ShowView("lobby") end
 end
 
 function Main:ResetPosition()
