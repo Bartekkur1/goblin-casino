@@ -22,6 +22,7 @@ Games\Jackpot.lua
 Games\Derby.lua
 Games\Sapper.lua
 Games\Onyxia.lua
+UI\Sound.lua
 UI\Minimap.lua
 UI\Wheel.lua
 UI\WheelView.lua

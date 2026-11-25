@@ -34,7 +34,7 @@ read_globals = {
 	"GetLocale", "GetMoney", "GetNormalizedRealmName", "GetNumGroupMembers", "GetRealmName",
 	"GetServerTime", "GetTime", "GetUnitName",
 	"IsInGroup", "IsInRaid", "LE_PARTY_CATEGORY_HOME", "LE_PARTY_CATEGORY_INSTANCE",
-	"Minimap", "NO", "YES", "PlaySound", "SOUNDKIT", "RANDOM_ROLL_RESULT", "RandomRoll",
+	"Minimap", "NO", "YES", "PlaySound", "PlaySoundFile", "SOUNDKIT", "RANDOM_ROLL_RESULT", "RandomRoll",
 	"StaticPopup_Show", "UIParent", "UISpecialFrames", "UNKNOWNOBJECT",
 	"UnitExists", "UnitIsConnected", "UnitIsVisible", "UnitName",
 	"date", "time", "debugstack", "geterrorhandler", "seterrorhandler", "issecretvalue",

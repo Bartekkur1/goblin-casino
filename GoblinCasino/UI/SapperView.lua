@@ -40,17 +40,6 @@ local function ChargeIcon()
 	return CHARGE_ICONS[#CHARGE_ICONS]
 end
 
-local function PlaySoundSafe(...)
-	if not SOUNDKIT then return end
-	for i = 1, select("#", ...) do
-		local id = SOUNDKIT[select(i, ...)]
-		if id then
-			pcall(PlaySound, id)
-			return
-		end
-	end
-end
-
 local function ColorCode(c)
 	return string.format("|cff%02x%02x%02x", c[1] * 255, c[2] * 255, c[3] * 255)
 end
@@ -545,15 +534,15 @@ function View.Create(parent, width, height)
 		if round.phase == "SPINNING" and t >= 0 then
 			if step and step ~= lastStep and not exploded then
 				lastStep = step
-				if holder then PlaySoundSafe("U_CHAT_SCROLL_BUTTON") end
+				if holder then ns.Sound.Play("pass") end
 			end
 			if not exploded and now - lastTick > (0.55 - 0.42 * Clamp(t / boom, 0, 1)) and not out then
 				lastTick = now
-				PlaySoundSafe("IG_MINIMAP_ZOOM_IN")
+				ns.Sound.Play("fuse")
 			end
 			if exploded and boomSeen ~= round.id and e < 1 then
 				boomSeen = round.id
-				PlaySoundSafe("RAID_WARNING", "READY_CHECK")
+				ns.Sound.Play("boom")
 			end
 		end
 

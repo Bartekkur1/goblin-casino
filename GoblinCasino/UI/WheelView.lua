@@ -131,6 +131,9 @@ local function CreateOgre(v, onFail)
 	function ogre:Hide()
 		state.index = 0
 	end
+	function ogre:Present()
+		return state.loaded and not state.failed
+	end
 	return ogre
 end
 
@@ -518,7 +521,17 @@ function View.Create(parent, width, height)
 	-- countdowns tick while the view is open; the ogre acts every frame
 	local clock = 0
 	v:SetScript("OnUpdate", function(self, dt)
-		ogre:Update(J.round)
+		local round = J.round
+		ogre:Update(round)
+		-- the ogre grunts as he whacks the wheel and roars at the result
+		if round and round.phase == "SPINNING" and round.spinStart then
+			ns.Sound.At("ding", round, GetTime() - round.spinStart, J.SPIN_SECONDS)
+		end
+		if round and round.phase == "SPINNING" and round.spinStart and ogre:Present() then
+			local since = GetTime() - round.spinStart
+			ns.Sound.At("slap", round, since, 0.15)
+			ns.Sound.At("ogreRoar", round, since, J.SPIN_SECONDS + 0.5)
+		end
 		clock = clock + dt
 		if clock >= 0.25 then
 			clock = 0

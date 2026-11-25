@@ -383,6 +383,8 @@ function View.Create(parent, width, height)
 			end
 		end
 		if round.phase == "SPINNING" then
+			ns.Sound.At("murlocStart", round, t, 0)
+			ns.Sound.At("murlocWin", round, t, script.winnerTime)
 			if t < 0 then
 				headline:SetText(tostring(math.ceil(-t)))
 				headline:SetTextColor(T.Unpack(C.gold))

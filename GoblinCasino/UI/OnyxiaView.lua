@@ -37,17 +37,6 @@ end
 
 local function Clamp(x, a, b) return math.max(a, math.min(b, x)) end
 
-local function PlaySoundSafe(...)
-	if not SOUNDKIT then return end
-	for i = 1, select("#", ...) do
-		local id = SOUNDKIT[select(i, ...)]
-		if id then
-			pcall(PlaySound, id)
-			return
-		end
-	end
-end
-
 function View.Create(parent, width, height)
 	local v = CreateFrame("Frame", nil, parent)
 	v:SetSize(width, height)
@@ -601,11 +590,11 @@ function View.Create(parent, width, height)
 		-- sounds, live only
 		if round.phase == "SPINNING" and wave and t >= wave.breathAt and t < wave.breathAt + 0.5 and soundWave ~= wave then
 			soundWave = wave
-			PlaySoundSafe("RAID_WARNING")
+			ns.Sound.Play("breath")
 		end
 		if round.phase == "SPINNING" and won and winSound ~= round.id and t - script.winAt < 1 then
 			winSound = round.id
-			PlaySoundSafe("READY_CHECK")
+			ns.Sound.Play("survive")
 		end
 
 		-- commentary

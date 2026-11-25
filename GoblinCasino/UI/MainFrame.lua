@@ -227,6 +227,36 @@ local function CreateHeader(f, body)
 	end)
 	bug:HookScript("OnLeave", function() GameTooltip:Hide() end)
 	bug:SetScript("OnClick", function() ns.LogWindow:Toggle() end)
+
+	-- Sound on/off (also /casino sound)
+	local speaker = T.DarkButton(body, "", 36, 36)
+	speaker:SetPoint("RIGHT", bug, "LEFT", -8, 0)
+	local speakerIcon = speaker:CreateTexture(nil, "ARTWORK")
+	speakerIcon:SetPoint("CENTER")
+	speakerIcon:SetSize(22, 22)
+	local function Exists(path) return not GetFileIDFromPath or GetFileIDFromPath(path) end
+	local ON = Exists("Interface\\Common\\VoiceChat-Speaker") and "Interface\\Common\\VoiceChat-Speaker"
+		or "Interface\\Icons\\INV_Misc_Bell_01"
+	local OFF = Exists("Interface\\Common\\VoiceChat-Muted") and "Interface\\Common\\VoiceChat-Muted" or ON
+	local function ShowSound(on)
+		speakerIcon:SetTexture(on and ON or OFF)
+		speakerIcon:SetDesaturated(not on)
+		speakerIcon:SetAlpha(on and 1 or 0.5)
+		if (on and ON or OFF):find("Icons") then speakerIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92) end
+	end
+	ShowSound(ns.Sound.Enabled())
+	ns.Sound.onToggle = ShowSound
+	speaker:SetScript("OnClick", function()
+		ns.Sound.SetEnabled(not ns.Sound.Enabled())
+		ns.Sound.Play("open")
+	end)
+	speaker:HookScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+		GameTooltip:SetText(ns.Sound.Enabled() and "Sound: on" or "Sound: off")
+		GameTooltip:AddLine("Goblin Casino's sounds: a round opening, your turn to roll, your result, and the games.\nClick to turn them " .. (ns.Sound.Enabled() and "off." or "on."), 1, 1, 1, true)
+		GameTooltip:Show()
+	end)
+	speaker:HookScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
 ---------------------------------------------------------------------------
@@ -546,10 +576,10 @@ local function Create()
 		Main:ShowView(J.round and J.round.game or "lobby")
 		-- the custom font may load a frame late; measure the gold text again once it has
 		C_Timer.After(0, function() Main:UpdateMoney() end)
-		if SOUNDKIT then PlaySound(SOUNDKIT.IG_MAINMENU_OPEN) end
+		ns.Sound.Play("open")
 	end)
 	f:SetScript("OnHide", function()
-		if SOUNDKIT then PlaySound(SOUNDKIT.IG_MAINMENU_CLOSE) end
+		ns.Sound.Play("close")
 	end)
 
 	RestorePosition(f)

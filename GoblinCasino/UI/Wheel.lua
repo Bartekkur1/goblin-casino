@@ -244,7 +244,10 @@ function Wheel.Create(parent, radius)
 		self.idle = on
 	end
 
-	local bulbClock, bulbPhase, lastSlice, lastTick = 0, 0, nil, 0
+	-- a click for every peg that passes the pointer (24 around the rim, like the bulbs), so the
+	-- clicks rattle at full speed and slow down to single ticks as the wheel stops
+	local PEG = 360 / BULBS
+	local bulbClock, bulbPhase, lastSlice, lastPeg = 0, 0, nil, nil
 	w:SetScript("OnUpdate", function(self, dt)
 		local now = GetTime()
 		local spin = self.spin
@@ -259,15 +262,16 @@ function Wheel.Create(parent, radius)
 				self.angle = spin.from + (spin.to - spin.from) * EaseOutQuart(math.max(t, 0))
 				self:Render()
 			end
-			-- a click each time a new slice passes the pointer
 			local under = self:UnderPointer()
 			if under ~= lastSlice then
 				lastSlice = under
 				if self.onPointer then self.onPointer(under) end
-				if now - lastTick > 0.045 and SOUNDKIT and SOUNDKIT.U_CHAT_SCROLL_BUTTON then
-					PlaySound(SOUNDKIT.U_CHAT_SCROLL_BUTTON)
-					lastTick = now
-				end
+			end
+			local peg = math.floor(self.angle / PEG)
+			if peg ~= lastPeg then
+				-- not for a spin that is already over (the window opened late)
+				if lastPeg and t < 1 and ns.Sound then ns.Sound.Play("tick") end
+				lastPeg = peg
 			end
 		elseif self.idle and #self.slices > 0 then
 			self.angle = self.angle + dt * 8
