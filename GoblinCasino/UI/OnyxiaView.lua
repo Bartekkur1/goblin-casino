@@ -12,9 +12,10 @@ ns.OnyxiaView = View
 local STAGE_H = 318
 local RAID_X0, RAID_X1 = 20, 470
 local CAM = 1.3
-local ONY_CAM = 1.0
-local ONY_FACING = -0.8 -- radians; more negative = more side-on (her head further left)
-local ONY_SCALE = 0.85  -- her size; 1 = as the model comes
+-- How Onyxia's model is shown (/casino tune changes these live and prints them)
+--   facing: radians, more negative = more side-on (her head further left)
+--   scale: SetModelScale, cam: SetCamDistanceScale, x/y/z: SetPosition
+local ONY = { facing = -0.8, scale = 0.85, cam = 1.0, x = 0, y = 0, z = 0 }
 local RED, ORANGE, DIM = hex("ff6b6b"), hex("ffb347"), hex("9d8fbf")
 local WHITE = hex("ffffff")
 local FIRE = hex("ff7a1a")
@@ -87,20 +88,23 @@ function View.Create(parent, width, height)
 	local ony = CreateFrame("PlayerModel", nil, onyFrame)
 	ony:SetAllPoints()
 	local onyState = { index = 0, cache = {} }
+	local function ApplyLook(m)
+		pcall(m.SetFacing, m, ONY.facing)
+		pcall(m.SetCamDistanceScale, m, ONY.cam)
+		pcall(m.SetModelScale, m, ONY.scale)
+		-- the position only once it was changed in /casino tune (we don't know the model's own)
+		if ONY.moved then pcall(m.SetPosition, m, ONY.x, ONY.y, ONY.z) end
+	end
 	local function OnyTry(index)
 		onyState.index, onyState.at, onyState.loaded, onyState.anim = index, GetTime(), false, nil
 		onyState.cache = {}
 		pcall(ony.SetDisplayInfo, ony, O.DISPLAYS[index])
-		pcall(ony.SetFacing, ony, ONY_FACING)
-		pcall(ony.SetCamDistanceScale, ony, ONY_CAM)
-		pcall(ony.SetModelScale, ony, ONY_SCALE)
+		ApplyLook(ony)
 	end
 	ony:SetScript("OnModelLoaded", function(self)
 		onyState.loaded = true
 		onyState.good = onyState.index
-		pcall(self.SetFacing, self, ONY_FACING)
-		pcall(self.SetCamDistanceScale, self, ONY_CAM)
-		pcall(self.SetModelScale, self, ONY_SCALE)
+		ApplyLook(self)
 		if onyState.anim then pcall(self.SetAnimation, self, onyState.anim) end
 	end)
 	local function OnyAnim(list)
@@ -801,6 +805,57 @@ function View.Create(parent, width, height)
 	end)
 	v:SetScript("OnShow", function(self) self:Refresh() end)
 	-- a model set while hidden may never load: set every model again the next time it is seen
+	-- /casino tune: change Onyxia's look live, then print the values to keep
+	local tune
+	function View.ToggleTune()
+		if not tune then
+			tune = CreateFrame("Frame", nil, stage)
+			tune:SetFrameLevel(stage:GetFrameLevel() + 95)
+			tune:SetSize(230, 214)
+			tune:SetPoint("TOPRIGHT", -6, -6)
+			T.Solid(tune, hex("0a0418", 0.92)):SetAllPoints()
+			T.Border(tune, C.violet, 1)
+			local rows = {
+				{ "facing", "Turn", 0.05 }, { "scale", "Size", 0.05 }, { "cam", "Camera", 0.1 },
+				{ "x", "Pos X", 0.25 }, { "y", "Pos Y", 0.25 }, { "z", "Pos Z", 0.25 },
+			}
+			-- start from where the model really is
+			local ok, px, py, pz = pcall(ony.GetPosition, ony)
+			if ok and px then ONY.x, ONY.y, ONY.z = px, py or 0, pz or 0 end
+			for i, r in ipairs(rows) do
+				local key, label, step = r[1], r[2], r[3]
+				local y = -10 - (i - 1) * 28
+				local name = T.Text(tune, T.FONT_BOLD, 11, C.text)
+				name:SetPoint("TOPLEFT", 10, y - 5)
+				name:SetText(label)
+				local value = T.Text(tune, T.FONT_BODY, 11, C.gold)
+				value:SetPoint("TOPLEFT", 70, y - 5)
+				local function Show() value:SetText(string.format("%.2f", ONY[key])) end
+				Show()
+				for j, d in ipairs({ -1, 1 }) do
+					local b = T.DarkButton(tune, d < 0 and "-" or "+", 30, 22)
+					b:SetPoint("TOPRIGHT", -10 - (2 - j) * 34, y)
+					b:SetScript("OnClick", function()
+						ONY[key] = math.floor((ONY[key] + d * step) * 100 + 0.5) / 100
+						if key == "x" or key == "y" or key == "z" then ONY.moved = true end
+						Show()
+						ApplyLook(ony)
+					end)
+				end
+			end
+			local printBtn = T.GoldButton(tune, "PRINT VALUES", 140, 26)
+			printBtn:SetPoint("BOTTOM", 0, 10)
+			printBtn:SetScript("OnClick", function()
+				local text = string.format("Onyxia look: facing = %.2f, scale = %.2f, cam = %.2f, x = %.2f, y = %.2f, z = %.2f",
+					ONY.facing, ONY.scale, ONY.cam, ONY.x, ONY.y, ONY.z)
+				ns.Print(text)
+				ns.Log.Add("tune", "%s", text)
+			end)
+			tune:Hide()
+		end
+		tune:SetShown(not tune:IsShown())
+	end
+
 	v:SetScript("OnHide", function()
 		for _, seat in ipairs(seats) do
 			seat.skin, seat.anim = nil, nil

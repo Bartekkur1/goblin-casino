@@ -59,6 +59,14 @@ SlashCmdList.GOBLINCASINO = function(msg)
 		ns.LogWindow:Toggle()
 	elseif msg == "models" then
 		ns.ModelTest:Toggle()
+	elseif msg == "tune" then
+		-- Onyxia's model, adjusted live (open Onyxia's Deep Breath first)
+		ns.Main:Get():Show()
+		if ns.Main.view ~= "onyxia" then
+			ns.Print("open Onyxia's Deep Breath first (a practice round works: /casino practice), then /casino tune.")
+		else
+			ns.OnyxiaView.ToggleTune()
+		end
 	elseif msg == "sounds" then
 		ns.Sound.ToggleTest()
 	elseif msg == "sound" then
