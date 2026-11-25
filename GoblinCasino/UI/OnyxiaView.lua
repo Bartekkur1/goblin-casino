@@ -13,6 +13,8 @@ local STAGE_H = 318
 local RAID_X0, RAID_X1 = 20, 470
 local CAM = 1.3
 local ONY_CAM = 1.0
+local ONY_FACING = -0.8 -- radians; more negative = more side-on (her head further left)
+local ONY_SCALE = 0.85  -- her size; 1 = as the model comes
 local RED, ORANGE, DIM = hex("ff6b6b"), hex("ffb347"), hex("9d8fbf")
 local WHITE = hex("ffffff")
 local FIRE = hex("ff7a1a")
@@ -76,15 +78,11 @@ function View.Create(parent, width, height)
 
 	-- Onyxia
 	local onyFrame = CreateFrame("Frame", nil, stage)
-	-- A model is cut off at the edges of its frame, and she faces the raid with her head far to the
-	-- left of her body. So the frame is wider than the lair's right side (onyW), around the same
-	-- center, and runs behind the raid (the stage clips the right part). The model is scaled to the
-	-- frame's width, so the camera moves back by the same factor: same place, same size, more room.
-	local onyW = width - RAID_X1 + 40
-	local frameW = onyW + 2 * 200
-	local onyCam = ONY_CAM * frameW / onyW
-	onyFrame:SetSize(frameW, STAGE_H)
-	onyFrame:SetPoint("CENTER", stage, "TOPLEFT", width + 30 - onyW / 2, -STAGE_H / 2)
+	-- The lair's right side (her size there looked right). A model is cut off at the edges of its
+	-- frame, so she turns a little less towards the raid and is drawn a bit smaller: her head, far
+	-- to the left of her body, then stays inside. (A wider frame makes the model bigger.)
+	onyFrame:SetSize(width - RAID_X1 + 40, STAGE_H)
+	onyFrame:SetPoint("TOPRIGHT", 30, 0)
 	onyFrame:SetFrameLevel(stage:GetFrameLevel() + 2)
 	local ony = CreateFrame("PlayerModel", nil, onyFrame)
 	ony:SetAllPoints()
@@ -93,14 +91,16 @@ function View.Create(parent, width, height)
 		onyState.index, onyState.at, onyState.loaded, onyState.anim = index, GetTime(), false, nil
 		onyState.cache = {}
 		pcall(ony.SetDisplayInfo, ony, O.DISPLAYS[index])
-		pcall(ony.SetFacing, ony, -1.15)
-		pcall(ony.SetCamDistanceScale, ony, onyCam)
+		pcall(ony.SetFacing, ony, ONY_FACING)
+		pcall(ony.SetCamDistanceScale, ony, ONY_CAM)
+		pcall(ony.SetModelScale, ony, ONY_SCALE)
 	end
 	ony:SetScript("OnModelLoaded", function(self)
 		onyState.loaded = true
 		onyState.good = onyState.index
-		pcall(self.SetFacing, self, -1.15)
-		pcall(self.SetCamDistanceScale, self, onyCam)
+		pcall(self.SetFacing, self, ONY_FACING)
+		pcall(self.SetCamDistanceScale, self, ONY_CAM)
+		pcall(self.SetModelScale, self, ONY_SCALE)
 		if onyState.anim then pcall(self.SetAnimation, self, onyState.anim) end
 	end)
 	local function OnyAnim(list)
