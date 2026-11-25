@@ -102,6 +102,7 @@ function View.Create(parent, width, height)
 	end
 	ony:SetScript("OnModelLoaded", function(self)
 		onyState.loaded = true
+		onyState.good = onyState.index
 		pcall(self.SetFacing, self, -1.15)
 		pcall(self.SetCamDistanceScale, self, ONY_CAM)
 		if onyState.anim then pcall(self.SetAnimation, self, onyState.anim) end
@@ -111,13 +112,17 @@ function View.Create(parent, width, height)
 		if list then
 			local key = table.concat(list, ",")
 			if onyState.cache[key] == nil then
-				onyState.cache[key] = false
+				local found
 				for _, a in ipairs(list) do
 					local ok, has = pcall(ony.HasAnimation, ony, a)
-					if ok and has then onyState.cache[key] = a; break end
+					if ok and has then found = a; break end
 				end
+				-- before the model has loaded HasAnimation knows nothing: ask again later
+				if found or onyState.loaded then onyState.cache[key] = found or false end
+				id = found or list[#list]
+			else
+				id = onyState.cache[key] or list[#list]
 			end
-			id = onyState.cache[key] or list[#list]
 		end
 		if onyState.anim ~= id then
 			onyState.anim = id
@@ -160,7 +165,9 @@ function View.Create(parent, width, height)
 		seat.warn:SetAlpha(0)
 		seat.mine = T.Circle(seat, 40, "BACKGROUND", 2)
 		seat.mine:SetColorTexture(C.gold[1], C.gold[2], C.gold[3], 0.35)
-		seat.shield = T.Circle(seat, 40, "OVERLAY", 0)
+		seat.over = CreateFrame("Frame", nil, seat) -- above the model (a seat texture is drawn under it)
+		seat.over:SetAllPoints()
+		seat.shield = T.Circle(seat.over, 40, "OVERLAY", 0)
 		seat.shield:SetBlendMode("ADD")
 		seat.shield:SetColorTexture(SHIELD[1], SHIELD[2], SHIELD[3], 0.55)
 		seat.shield:SetAlpha(0)
@@ -197,7 +204,8 @@ function View.Create(parent, width, height)
 		local want = (unit and UnitIsVisible(unit)) and ("unit:" .. name) or ("skin:" .. tostring(skin))
 		if seat.skin == want then return end
 		seat.anim, seat.celebrate, seat.celebrateTries = nil, nil, nil
-		seat.skin = W.SetAvatar(seat.model, name, skin)
+		seat.skin = want -- not SetAvatar's key: if SetUnit fails, that one never matches and reloads
+		W.SetAvatar(seat.model, name, skin)
 		pcall(seat.model.SetFacing, seat.model, 0.9)
 		pcall(seat.model.SetCamDistanceScale, seat.model, CAM)
 		SetAnim(seat, ANIM.stand)
@@ -224,7 +232,7 @@ function View.Create(parent, width, height)
 		local rows = n <= 3 and math.max(n, 1) or (n <= 8 and 3 or (n <= 15 and 4 or 5))
 		local cols = math.max(1, math.ceil(n / rows))
 		local cellW = (RAID_X1 - RAID_X0) / cols
-		local cellH = (STAGE_H - 46) / rows
+		local cellH = (STAGE_H - 46 - 24) / rows -- 24: the last row's name and stake below the models
 		modelSize = math.floor(math.min(cellH * 1.5, cellW * 1.05, 120))
 		wipe(seatOf)
 		for _, seat in ipairs(seats) do
@@ -242,6 +250,8 @@ function View.Create(parent, width, height)
 			seat:SetSize(modelSize, modelSize)
 			seat:SetPoint("CENTER", stage, "TOPLEFT", x, -y)
 			seat:SetFrameLevel(stage:GetFrameLevel() + 4 + row * 3)
+			seat.model:SetFrameLevel(seat:GetFrameLevel() + 1)
+			seat.over:SetFrameLevel(seat:GetFrameLevel() + 2)
 			seat.x, seat.y = x, y
 			local ringW = modelSize * 0.6
 			for _, r in ipairs({ seat.ring, seat.warn, seat.mine }) do
@@ -307,6 +317,19 @@ function View.Create(parent, width, height)
 	headline:SetPoint("TOPLEFT", 2, -4)
 	headline:SetWidth(width - 340)
 	headline:SetWordWrap(false)
+	local function SetHeadline(text)
+		if headline.text == text then return end
+		headline.text = text
+		headline:SetFont(T.FONT_DISPLAY, 18, "")
+		headline:SetWordWrap(false)
+		headline:SetText(text)
+		local w = headline.GetUnboundedStringWidth and headline:GetUnboundedStringWidth() or headline:GetStringWidth()
+		if w > headline:GetWidth() then
+			headline:SetFont(T.FONT_DISPLAY, 14, "")
+			headline:SetWordWrap(true)
+			pcall(headline.SetMaxLines, headline, 2)
+		end
+	end
 	local message = T.Text(bottom, T.FONT_BODY, 11, C.textDim)
 	message:SetPoint("TOPLEFT", headline, "BOTTOMLEFT", 0, -8)
 	message:SetWidth(width - 340)
@@ -558,11 +581,12 @@ function View.Create(parent, width, height)
 		end
 
 		-- banner: "MANY WHELPS! HANDLE IT!" and the winner
-		local current
+		local current, whelps
 		for _, ev in ipairs(script.events) do
 			if ev.t <= t then current = ev end
+			if ev.kind == "whelps" then whelps = ev end
 		end
-		if current and current.kind == "whelps" and t - current.t < 2.2 then
+		if whelps and t >= whelps.t and t - whelps.t < 2.2 then
 			banner:SetText("MANY WHELPS!\nHANDLE IT!")
 			banner:SetTextColor(T.Unpack(C.gold))
 			banner:Show()
@@ -587,10 +611,10 @@ function View.Create(parent, width, height)
 		-- commentary
 		if round.phase == "SPINNING" then
 			if t < 0 then
-				headline:SetText(tostring(math.ceil(-t)))
+				SetHeadline(tostring(math.ceil(-t)))
 				headline:SetTextColor(T.Unpack(C.gold))
 			elseif current then
-				headline:SetText(current.text)
+				SetHeadline(current.text)
 				headline:SetTextColor(T.Unpack((current.kind == "breath" or current.kind == "roasted") and FIRE
 					or current.kind == "win" and C.gold or C.text))
 			end
@@ -613,7 +637,7 @@ function View.Create(parent, width, height)
 			.. "  ·  limit " .. U.Gold(round.limit))
 
 		-- Onyxia's model (the next candidate if one doesn't load)
-		if onyState.index == 0 then OnyTry(1) end
+		if onyState.index == 0 then OnyTry(onyState.good or 1) end
 
 		-- the raid follows the bets
 		local players = U.SortedKeys(round.bets)
@@ -654,7 +678,7 @@ function View.Create(parent, width, height)
 		info:SetWidth(320)
 
 		if round.phase == "SETUP" then
-			headline:SetText("CHOOSE THE STAKE LIMIT")
+			SetHeadline("CHOOSE THE STAKE LIMIT")
 			headline:SetTextColor(T.Unpack(C.gold))
 			message:SetText("Everyone bets from 1g up to this. A bigger stake is a thicker cloak: your chance to survive "
 				.. "is your share of the pot. It can't change once bets are open. "
@@ -664,7 +688,7 @@ function View.Create(parent, width, height)
 			if not limitBox:HasFocus() then limitBox:SetNumber(round.limit) end
 
 		elseif round.phase == "BETTING" then
-			headline:SetText(count .. (count == 1 and " RAIDER" or " RAIDERS") .. "  ·  POT " .. U.Thousands(total) .. "G")
+			SetHeadline(count .. (count == 1 and " RAIDER" or " RAIDERS") .. "  ·  POT " .. U.Thousands(total) .. "G")
 			headline:SetTextColor(T.Unpack(C.gold))
 			local hint = (isHost and count < 2) and "You can summon her once at least 2 raiders are in."
 			local mine = myBet and string.format("Your stake: %s, a %d%% chance to be the last one standing. Enter 0 to withdraw.",
@@ -687,7 +711,7 @@ function View.Create(parent, width, height)
 			for _, name in ipairs(names) do
 				if round.seen and round.seen[name] then rolled = rolled + 1 end
 			end
-			headline:SetText("SHE STIRS...  ·  " .. rolled .. "/" .. count .. " ROLLED")
+			SetHeadline("SHE STIRS...  ·  " .. rolled .. "/" .. count .. " ROLLED")
 			headline:SetTextColor(T.Unpack(C.cyan))
 			message:SetText(note or "Everyone's /roll makes the seed. Only the seed (and your stake) decides who survives.")
 			message:SetTextColor(T.Unpack(note and noteColor or C.textDim))
@@ -712,7 +736,7 @@ function View.Create(parent, width, height)
 
 		elseif round.phase == "DONE" then
 			local res = round.result
-			headline:SetText(U.Short(res.winner):upper() .. " SURVIVES!")
+			SetHeadline(U.Short(res.winner):upper() .. " SURVIVES!")
 			headline:SetTextColor(T.Unpack(C.gold))
 			local paying = #res.transfers
 			local summary = U.Short(res.winner) .. " receives " .. U.Gold(res.gain) .. " from "
@@ -749,7 +773,7 @@ function View.Create(parent, width, height)
 			end
 
 		else -- CANCELLED
-			headline:SetText("ROUND CANCELLED")
+			SetHeadline("ROUND CANCELLED")
 			headline:SetTextColor(T.Unpack(RED))
 			message:SetText(round.error or "Nobody pays.")
 			message:SetTextColor(T.Unpack(C.textDim))
@@ -764,7 +788,7 @@ function View.Create(parent, width, height)
 	local clock = 0
 	v:SetScript("OnUpdate", function(self, dt)
 		-- Onyxia's model didn't load: try the next one
-		if onyState.index > 0 and not onyState.loaded and GetTime() - onyState.at > 3
+		if onyState.index > 0 and not onyState.loaded and not onyState.good and GetTime() - onyState.at > 5
 			and onyState.index < #O.DISPLAYS then
 			OnyTry(onyState.index + 1)
 		end
