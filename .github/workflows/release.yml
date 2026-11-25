@@ -3,8 +3,8 @@
 #   2. zips the GoblinCasino folder,
 #   3. uploads it to CurseForge (project id from "## X-Curse-Project-ID"),
 #   4. tags the commit and creates a GitHub release with the same zip.
-# Needs the repository secret CF_API_KEY (a CurseForge API token).
-# Optional repository variable CF_GAME_VERSION: CurseForge game version name(s) or id(s), comma
+# Needs the secret CF_API_KEY (a CurseForge API token) in the GitHub environment "curseforge".
+# Optional variable CF_GAME_VERSION (same environment): CurseForge game version name(s) or id(s), comma
 # separated, when the version can't be found from the TOC's "## Interface" number.
 name: Release
 
@@ -23,6 +23,10 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # CF_API_KEY (and CF_GAME_VERSION, if needed) live in this GitHub environment
+    environment:
+      name: curseforge
+      url: https://www.curseforge.com/wow/addons/goblin-casino
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -78,7 +82,7 @@ jobs:
           CF_GAME_VERSION: ${{ vars.CF_GAME_VERSION }}
         run: |
           if [ -z "$CF_API_KEY" ]; then
-            echo "::error::The repository secret CF_API_KEY is missing (Settings > Secrets and variables > Actions)."
+            echo "::error::The secret CF_API_KEY is missing in the environment curseforge (Settings > Environments > curseforge)."
             exit 1
           fi
           python3 .github/scripts/curseforge_upload.py \

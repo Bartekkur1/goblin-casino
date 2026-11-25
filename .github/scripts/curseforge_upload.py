@@ -64,8 +64,8 @@ def pick_versions(token, interface):
     print("Versions starting with", repr(major), ":")
     for v in near[:60]:
         print("  ", label(v))
-    print("Set the repository variable CF_GAME_VERSION (Settings > Secrets and variables > Actions >"
-          " Variables) to the right name or id, then re-run this workflow.")
+    print("Set the variable CF_GAME_VERSION in the environment curseforge (Settings > Environments >"
+          " curseforge > Environment variables) to the right name or id, then re-run this workflow.")
     sys.exit(1)
 
 
