@@ -15,7 +15,7 @@ local CAM = 1.3
 -- How Onyxia's model is shown (/casino tune changes these live and prints them)
 --   facing: radians, more negative = more side-on (her head further left)
 --   scale: SetModelScale, cam: SetCamDistanceScale, x/y/z: SetPosition
-local ONY = { facing = -0.8, scale = 0.85, cam = 1.0, x = 0, y = 0, z = 0 }
+local ONY = { facing = -0.5, scale = 0.85, cam = 1.0, x = -7, y = -0.5, z = 0, moved = true } -- set in game
 local RED, ORANGE, DIM = hex("ff6b6b"), hex("ffb347"), hex("9d8fbf")
 local WHITE = hex("ffffff")
 local FIRE = hex("ff7a1a")
