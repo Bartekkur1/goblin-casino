@@ -7,10 +7,10 @@ local View = {}
 ns.WheelView = View
 
 local ROWS, ROW_H = 9, 26
-local RADIUS = 112
+local RADIUS = 100
 local LEFT_W = 320
 local WHEEL_TOP = -40        -- without the ogre
-local WHEEL_TOP_OGRE = -96   -- lower, so the ogre's head and shoulders show above it
+local WHEEL_TOP_OGRE = -128  -- lower, so the ogre's head and shoulders show above it
 local RED, ORANGE, DIM = hex("ff6b6b"), hex("ffb347"), hex("9d8fbf")
 
 -- The ogre croupier stands behind the wheel: his head, shoulders and arms show around it. Creature
@@ -22,7 +22,7 @@ local OGRES = {
 	11501, -- King Gordok
 	18069, -- Mogor
 }
-local OGRE_W, OGRE_H, OGRE_TOP = 300, 300, -30 -- his frame; the feet are hidden behind the wheel
+local OGRE_W, OGRE_H, OGRE_TOP = 320, 340, -6 -- his frame; the feet are hidden behind the wheel
 local OGRE_ANIMS = {             -- the first one the model has is played
 	idle = { 0 },
 	talk = { 60, 70, 0 },        -- talk, laugh
