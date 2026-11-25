@@ -1,4 +1,5 @@
 # Every push to main (a merge from dev) publishes a release:
+#   0. runs the tests (test.yml) and stops if they fail,
 #   1. reads "## Version" from GoblinCasino.toc (must be new: the tag v<version> can't exist yet),
 #   2. zips the GoblinCasino folder,
 #   3. uploads it to CurseForge (project id from "## X-Curse-Project-ID"),
@@ -21,7 +22,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # the same checks as on pull requests: nothing is released unless they pass
+  test:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/test.yml
+
   release:
+    needs: test
     # releases only ever come from main (also when started by hand from the Actions tab)
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest

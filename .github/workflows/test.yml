@@ -1,0 +1,43 @@
+# Checks every change: luacheck (undeclared or misspelled variables and the like) and the tests in
+# tests/ (game results, and whole rounds played by simulated clients). Runs on pushes to dev, on
+# every pull request (main only takes merges that pass: set "Lint and tests" as a required check),
+# and before every release (release.yml calls it).
+name: Tests
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint and tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Lua 5.1 and luacheck
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q lua5.1 lua-check
+          lua5.1 -v
+          luacheck --version
+
+      - name: Luacheck
+        run: |
+          status=0
+          luacheck GoblinCasino --formatter plain > luacheck.txt || status=$?
+          cat luacheck.txt
+          # each warning as an annotation on the line it is about
+          sed -E 's/^([^:]+):([0-9]+):([0-9]+): (.*)$/::error file=\1,line=\2,col=\3::\4/' luacheck.txt
+          exit $status
+
+      - name: Tests
+        if: success() || failure()
+        run: lua5.1 tests/run.lua
