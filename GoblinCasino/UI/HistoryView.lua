@@ -9,7 +9,7 @@ ns.HistoryView = View
 
 local RED, DIM = hex("ff6b6b"), hex("9d8fbf")
 local LEFT_W = 452
-local GAME_COLOR = { wheel = C.lilac, derby = C.teal, sapper = C.orange or hex("ff9a3c"), onyxia = hex("ff5c5c") }
+local GAME_COLOR = { wheel = C.lilac, derby = C.teal, sapper = C.orange or hex("ff9a3c"), onyxia = hex("ff5c5c"), brewfest = hex("ffb347") }
 
 StaticPopupDialogs["GOBLINCASINO_CLEAR_HISTORY"] = {
 	text = "Clear the whole Goblin Casino history? This can't be undone.",

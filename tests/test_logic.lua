@@ -246,6 +246,30 @@ test("Hot Sapper: the charge ends in the loser's hands and never goes straight b
 	end
 end)
 
+test("Brewfest Brawl: the drunkest one standing wins, else the one who went over the least", function()
+	local Compute = J.games.brewfest.Compute
+	for _ = 1, 150 do
+		local n = Random(2, 12)
+		local bets, drinks = {}, {}
+		for i = 1, n do
+			bets[NAMES[i]] = 25
+			local list = {}
+			for _ = 1, Random(0, 6) do list[#list + 1] = Random(10, 35) end
+			drinks[NAMES[i]] = list
+		end
+		local res = Compute(bets, drinks)
+		CheckWinner(res, bets, "brewfest")
+		local best, standing = nil, false
+		for _, s in pairs(res.sums) do standing = standing or s <= 100 end
+		for _, s in pairs(res.sums) do
+			if standing and s <= 100 and (not best or s > best) then best = s end
+			if not standing and (not best or s < best) then best = s end
+		end
+		eq(res.sums[res.winner], best, "brewfest: the winner's total")
+		eq(res.standing, standing, "brewfest: someone standing")
+	end
+end)
+
 ---------------------------------------------------------------------------
 -- Fairness: chances follow the stakes (wheel, Onyxia) or are equal (derby, sapper)
 ---------------------------------------------------------------------------

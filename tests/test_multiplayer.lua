@@ -6,8 +6,8 @@ local World = require("wow")
 local NAMES = { "Bika", "Hymel", "Zork", "Anna", "Kix", "Morgana", "Tirion", "Garrosh", "Velen", "Jaina",
 	"Thrall", "Sylvanas", "Varian", "Malfurion", "Tyrande", "Illidan", "Arthas", "Uther", "Rexxar", "Chen" }
 local SURNAMES = { "Selfbane", "Jádwiga", "Ironfist", "Brightwater", "Fizzbolt" }
-local GAMES = { "wheel", "derby", "sapper", "onyxia" }
-local FIXED = { derby = true, sapper = true }
+local GAMES = { "wheel", "derby", "sapper", "onyxia", "brewfest" }
+local FIXED = { derby = true, sapper = true, brewfest = true }
 
 -- A group of n players (the first one hosts); names can be made longer to force long messages.
 local function Group(n, longNames)
@@ -245,5 +245,75 @@ test("players who join a round late can't bet once it's full", function()
 	for i = 1, 12 do Bet(w, cs[i], 10) end
 	local ok = cs[13].J.Bet(10)
 	check(not ok, "a 13th player joined Hot Sapper")
+	NoErrors(w)
+end)
+
+---------------------------------------------------------------------------
+-- Brewfest Brawl: every mug is a /roll 10-35, players stop when they like
+---------------------------------------------------------------------------
+local function Brew(c) return c.ns.Brewfest end
+
+local function BrewRound(n)
+	local w, cs = Group(n)
+	Open(w, cs[1], "brewfest", 20)
+	BetAll(w, cs, "brewfest", 20)
+	Lock(w, cs[1])
+	return w, cs
+end
+
+local function Drink(w, c, mugs)
+	for i = 1, mugs do
+		local ok, err = Brew(c).Drink()
+		check(ok, c.name .. " can't drink mug " .. i .. ": " .. tostring(err))
+		w:Run(0.5)
+	end
+end
+
+test("brewfest: the drunkest one still standing wins, the same on every client", function()
+	local w, cs = BrewRound(3)
+	w.nextRoll = function() return 30 end
+	Drink(w, cs[1], 3)                      -- Bika 90%
+	check(Brew(cs[1]).Stop(), "Bika stops")
+	Drink(w, cs[2], 4)                      -- Hymel 120%: under the table
+	check(not Brew(cs[2]).Drink(), "Hymel drinks under the table")
+	Drink(w, cs[3], 1)                      -- Zork 30%
+	check(Brew(cs[3]).Stop(), "Zork stops")
+	w:Run(1.5) -- everyone is done: the host closes the bar
+	for _, c in ipairs(cs) do eq(c.J.round.phase, "SPINNING", c.name .. "'s phase") end
+	local round = Finish(w, cs)
+	eq(round.result.winner, cs[1].U.Me(), "winner")
+	eq(round.result.sums[cs[2].U.Me()], 120, "Hymel's total")
+	eq(#round.result.transfers, 2, "both others pay")
+end)
+
+test("brewfest: everyone under the table, the one who went over the least wins", function()
+	local w, cs = BrewRound(3)
+	w.nextRoll = function(c) return c == cs[2] and 34 or 35 end
+	for _, c in ipairs(cs) do Drink(w, c, 3) end -- 105, 102, 105
+	w:Run(1.5)
+	local round = Finish(w, cs)
+	eq(round.result.winner, cs[2].U.Me(), "winner")
+	eq(round.result.standing, false, "nobody standing")
+end)
+
+test("brewfest: when time runs out, whoever is still drinking stops where they are", function()
+	local w, cs = BrewRound(3)
+	w.nextRoll = function() return 30 end
+	Drink(w, cs[1], 2)                      -- 60%, never says enough
+	Drink(w, cs[2], 1)                      -- 30%
+	check(Brew(cs[2]).Stop(), "Hymel stops")
+	w:Run(45)                               -- the taps close (40 s and the grace)
+	local round = Finish(w, cs)
+	eq(round.result.winner, cs[1].U.Me(), "winner")
+	eq(round.result.sums[cs[3].U.Me()], 0, "Zork never drank")
+end)
+
+test("brewfest: a mug can't be drunk before the last one arrived, nor after stopping", function()
+	local w, cs = BrewRound(2)
+	check(Brew(cs[1]).Drink(), "first mug")
+	check(not Brew(cs[1]).Drink(), "second mug while the first is on its way")
+	w:Run(0.5)
+	check(Brew(cs[1]).Stop(), "stop")
+	check(not Brew(cs[1]).Drink(), "a mug after stopping")
 	NoErrors(w)
 end)

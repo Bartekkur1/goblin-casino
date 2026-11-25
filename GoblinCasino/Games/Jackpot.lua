@@ -151,6 +151,12 @@ end
 --   fixed         true: everyone pays the same entry (the limit); false: any stake up to the limit
 --   maxPlayers    optional cap on entries
 --   bots          { min, max } practice bots
+-- Games whose ROLLING phase is their own (Brewfest Brawl: players drink mugs, each a /roll 10-35):
+--   rollSeconds   how long ROLLING lasts (default J.ROLL_SECONDS)
+--   OnRoll        function(round, name, roll, low, high): every roll during ROLLING goes here instead
+--   HostDeadline  function(round): the host's time is up (instead of rolling for missing players)
+--   BotsRoll      function(round): practice bots play the ROLLING phase
+--   noSync        true: a player back from /reload can't pick the round up after BETTING
 ---------------------------------------------------------------------------
 J.games = {}
 
@@ -304,10 +310,14 @@ function J.OpenBets()
 	return true
 end
 
+local function RollSeconds(round)
+	return J.Game(round).rollSeconds or J.ROLL_SECONDS
+end
+
 local function StartRolling(round)
 	round.phase = "ROLLING"
 	round.lockedAt = GetTime()
-	round.deadline = GetTime() + J.ROLL_SECONDS
+	round.deadline = GetTime() + RollSeconds(round)
 	round.seen, round.hostExtra, round.subs = {}, {}, {}
 end
 
@@ -329,16 +339,18 @@ function J.Lock()
 		return false, "The game is blocking addon messages right now (boss fight?). Try again in a moment."
 	end
 	StartRolling(round)
+	local seconds = RollSeconds(round)
 	if round.practice then
-		BotsRoll(round)
-		C_Timer.After(J.ROLL_SECONDS, function() J.HostDeadline(round) end)
+		local def = J.Game(round)
+		if def.BotsRoll then def.BotsRoll(round) else BotsRoll(round) end
+		C_Timer.After(seconds, function() J.HostDeadline(round) end)
 	else
 		Comm.Send("L", round.id, EncodeMap(round.bets))
 		-- the players' time starts when the list has actually gone out (it can wait in the queue)
 		Comm.Flushed(function()
 			if J.round ~= round or round.phase ~= "ROLLING" then return end
-			round.deadline = GetTime() + J.ROLL_SECONDS
-			C_Timer.After(J.ROLL_SECONDS, function() J.HostDeadline(round) end)
+			round.deadline = GetTime() + seconds
+			C_Timer.After(seconds, function() J.HostDeadline(round) end)
 			Changed()
 		end)
 	end
@@ -421,6 +433,17 @@ end
 ---------------------------------------------------------------------------
 -- Rolls
 ---------------------------------------------------------------------------
+-- "name=roll" (or "name=23.11.30" for a list of rolls), "*" for a host's substitute roll
+local function RollsText(rolls, subs)
+	local parts = {}
+	for _, name in ipairs(U.SortedKeys(rolls)) do
+		local v = rolls[name]
+		parts[#parts + 1] = name .. "=" .. (type(v) == "table" and table.concat(v, ".") or tostring(v))
+			.. ((subs and subs[name]) and "*" or "")
+	end
+	return table.concat(parts, ",")
+end
+
 local function Finish(round, rolls, subs)
 	local def = J.Game(round)
 	round.rolls, round.subs = rolls, subs or {}
@@ -428,7 +451,7 @@ local function Finish(round, rolls, subs)
 	local res = round.result
 	ns.Log.Add("round", "%s result: %s %s gain %s seed %s rolls {%s}", round.id, res.loser and "loser" or "winner",
 		res.loser or res.winner, res.gain, res.seed,
-		EncodeMap(rolls, subs))
+		RollsText(rolls, subs))
 	for _, t in ipairs(res.transfers or {}) do
 		ns.Log.Add("round", "  %s pays %s %sg", t.from, t.to, t.amount)
 	end
@@ -468,6 +491,8 @@ local function Finish(round, rolls, subs)
 	end)
 end
 
+J.Finish = Finish
+
 local function HostFinish(round)
 	if round.phase ~= "ROLLING" or round.finishing then return end
 	round.finishing = true
@@ -502,6 +527,8 @@ end
 
 function J.HostDeadline(round)
 	if J.round ~= round or round.phase ~= "ROLLING" or not J.IsHost(round) or round.subbing then return end
+	local def = J.Game(round)
+	if def.HostDeadline then return def.HostDeadline(round) end
 	local me = U.Me()
 	local missing, selfMissing = {}, false
 	for _, name in ipairs(U.SortedKeys(round.bets)) do
@@ -542,9 +569,18 @@ function J.HostDeadline(round)
 end
 
 -- Every /roll 1-1000000 seen in chat (and the made-up rolls of practice bots).
-function J.OnRoll(name, roll)
+-- low, high: the roll's range (nil for the practice bots' made-up 1-1000000 rolls).
+function J.OnRoll(name, roll, low, high)
 	local round = J.round
 	local debug = ns.Debug or function() end
+	local def = round and J.Game(round)
+	if def and def.OnRoll and round.phase == "ROLLING" then
+		return def.OnRoll(round, name, roll, low or Rolls.MIN, high or Rolls.MAX)
+	end
+	if low and (low ~= Rolls.MIN or high ~= Rolls.MAX) then
+		debug("roll %s by %s ignored: range %s-%s is not %d-%d", roll, name, low, high, Rolls.MIN, Rolls.MAX)
+		return
+	end
 	if round and round.phase == "BETTING" then
 		-- the host may have locked already and this client just hasn't heard yet: keep the roll so
 		-- the host's final roll list can be checked against it
@@ -777,6 +813,7 @@ Comm.On("Q", function(_, sender)
 		if not (Cancellable(round) or recent) then return end
 		-- once the bets are locked, only players in the round need it
 		if phase ~= "BETTING" and not round.bets[sender] then return end
+		if phase ~= "BETTING" and J.Game(round).noSync then return end
 		local rolls, marks = round.seen or {}, nil
 		if round.rolls then rolls, marks = round.rolls, round.subs end
 		local left = round.deadline and math.max(0, math.floor(round.deadline - GetTime())) or 0
