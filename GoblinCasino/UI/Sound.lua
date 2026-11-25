@@ -35,9 +35,10 @@ Sound.CUES = {
 	-- Hot Sapper
 	pass = { "U_CHAT_SCROLL_BUTTON", gap = 0.05, text = "Sapper: the charge is caught" },
 	fuse = { "IG_MINIMAP_ZOOM_IN", gap = 0.05, text = "Sapper: the fuse ticks" },
-	boom = { "RAID_WARNING", gap = 1, text = "Sapper: BOOM" },
+	boom = { 569406, "RAID_WARNING", gap = 1, text = "Sapper: BOOM" },                 -- DynamiteExplode
 	-- Onyxia's Deep Breath
-	breath = { "RAID_WARNING", gap = 1, text = "Onyxia: Deep Breath" },
+	breath = { 4526046, "RAID_WARNING", gap = 1, text = "Onyxia: Deep Breath",       -- deepbreath_cast
+		alts = { 4526048, 4526050, 4569628 } },
 	survive = { "READY_CHECK", gap = 1, text = "Onyxia: the survivor" },
 }
 
