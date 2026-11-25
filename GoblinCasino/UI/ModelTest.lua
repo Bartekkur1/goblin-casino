@@ -10,14 +10,15 @@ ns.ModelTest = MT
 -- Candidates. "D" = creature display ID (SetDisplayInfo), "C" = creature/NPC ID (SetCreature).
 -- From memory of classic murlocs; some may be wrong, that's what this window is for.
 local CANDIDATES = {
+	{ "D", 8570 }, { "D", 11380 }, -- Onyxia, Nefarian (for Onyxia's Deep Breath)
 	{ "D", 441 }, { "D", 478 }, { "D", 486 }, { "D", 487 }, { "D", 506 }, { "D", 507 }, { "D", 524 },
 	{ "D", 527 }, { "D", 535 }, { "D", 545 }, { "D", 548 }, { "D", 549 }, { "D", 616 }, { "D", 655 },
 	{ "C", 46 }, { "C", 126 }, { "C", 127 }, { "C", 171 }, { "C", 456 }, { "C", 458 }, { "C", 513 },
-	{ "C", 515 }, { "C", 517 }, { "C", 578 }, { "C", 732 }, { "C", 1767 }, { "C", 391 }, { "C", 3739 },
+	{ "C", 515 }, { "C", 517 }, { "C", 578 }, { "C", 732 }, { "C", 1767 },
 }
 
 local COLS, CELL_W, CELL_H = 7, 108, 118
-local ANIMS = { { "STAND", 0 }, { "WALK", 4 }, { "RUN", 5 }, { "STUN", 14 }, { "CHEER", 68 } }
+local ANIMS = { { "STAND", 0 }, { "RUN", 5 }, { "STUN", 14 }, { "CHEER", 68 }, { "DEATH", 1 }, { "ROAR", 74 }, { "CAST", 51 } }
 
 local frame
 local cells = {}
@@ -121,18 +122,18 @@ local function Create()
 	bar:SetHeight(34)
 	local x = 0
 	for _, a in ipairs(ANIMS) do
-		local b = T.DarkButton(bar, a[1], 62, 30)
+		local b = T.DarkButton(bar, a[1], 52, 30, 10)
 		b:SetPoint("LEFT", x, 0)
 		b:SetScript("OnClick", function()
 			anim = a[2]
 			ApplyAll()
 		end)
-		x = x + 66
+		x = x + 55
 	end
 	local turn = T.DarkButton(bar, "TURN 90°", 76, 30)
 	turn:SetPoint("LEFT", x + 6, 0)
 	local facingText = T.Text(bar, T.FONT_BODY, 10, C.textDim)
-	facingText:SetPoint("LEFT", turn, "RIGHT", 8, 0)
+	facingText:SetPoint("BOTTOM", turn, "TOP", 0, 3)
 	local function ShowFacing()
 		facingText:SetText(string.format("facing %d°", math.floor(math.deg(facing) + 0.5) % 360))
 	end

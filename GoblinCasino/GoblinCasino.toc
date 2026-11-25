@@ -21,11 +21,13 @@ UI\LogWindow.lua
 Games\Jackpot.lua
 Games\Derby.lua
 Games\Sapper.lua
+Games\Onyxia.lua
 UI\Minimap.lua
 UI\Wheel.lua
 UI\WheelView.lua
 UI\DerbyView.lua
 UI\SapperView.lua
+UI\OnyxiaView.lua
 UI\HistoryView.lua
 UI\ModelTest.lua
 UI\MainFrame.lua

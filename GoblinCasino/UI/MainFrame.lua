@@ -41,6 +41,20 @@ local GAMES = {
 		onPlay = function() Main:StartGame("sapper") end,
 	},
 	{
+		key = "onyxia",
+		title = "Onyxia's Deep Breath",
+		desc = "The raid on Onyxia's platform. Wave after wave of fire, and the last raider standing loots the pot.",
+		icon = {
+			"Interface\\Icons\\Achievement_Boss_Onyxia",
+			"Interface\\Icons\\INV_Misc_Head_Dragon_Black",
+			"Interface\\Icons\\INV_Misc_Head_Dragon_01",
+			"Interface\\Icons\\Spell_Fire_Fire",
+		},
+		accent = hex("ff5c5c"), status = "READY", statusColor = C.green,
+		meta = "Any stake  ·  bigger stake, thicker cloak",
+		onPlay = function() Main:StartGame("onyxia") end,
+	},
+	{
 		key = "wheel",
 		title = "Ogre's Wheel",
 		desc = "Bigger stake, bigger slice of the wheel. One spin, and the winner takes the whole pool.",
@@ -495,9 +509,11 @@ local function Create()
 	derby:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
 	local sapper = ns.SapperView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
 	sapper:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
+	local onyxia = ns.OnyxiaView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
+	onyxia:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
 	local history = ns.HistoryView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
 	history:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
-	f.views = { lobby = lobby, wheel = wheel, derby = derby, sapper = sapper, history = history }
+	f.views = { lobby = lobby, wheel = wheel, derby = derby, sapper = sapper, onyxia = onyxia, history = history }
 	J.OnChange(function() Main:UpdateLobby() end)
 
 	f:RegisterEvent("PLAYER_MONEY")
