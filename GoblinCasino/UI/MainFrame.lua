@@ -132,10 +132,24 @@ local function CreateHeader(f, body)
 	local face = T.Circle(emblem, HEADER_H - 6, "BORDER")
 	face:SetPoint("CENTER")
 	face:SetColorTexture(T.Unpack(Mix(C.goldDark, C.goldShadow, 0.35)))
-	local letter = T.Text(emblem, T.FONT_DISPLAY, 22, C.goldInk)
-	letter:SetJustifyH("CENTER")
-	letter:SetPoint("CENTER", 1, 0)
-	letter:SetText("G")
+	-- a goblin's face in the gold ring (the first icon this client has; a "G" if none)
+	local goblin
+	for _, path in ipairs({
+		"Interface\\Icons\\Achievement_Character_Goblin_Male",
+		"Interface\\Icons\\Achievement_Goblinhead",
+		"Interface\\Icons\\Achievement_Character_Goblin_Female",
+	}) do
+		if not GetFileIDFromPath or GetFileIDFromPath(path) then goblin = path; break end
+	end
+	if goblin then
+		face:SetTexture(goblin)
+		face:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- without the icon's own border
+	else
+		local letter = T.Text(emblem, T.FONT_DISPLAY, 22, C.goldInk)
+		letter:SetJustifyH("CENTER")
+		letter:SetPoint("CENTER", 1, 0)
+		letter:SetText("G")
+	end
 
 	local title = T.Text(body, T.FONT_DISPLAY, 26, C.gold)
 	title:SetPoint("TOPLEFT", emblem, "TOPRIGHT", 12, -1)
