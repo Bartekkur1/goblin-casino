@@ -10,12 +10,14 @@
 ## AddonCompartmentFuncOnLeave: GoblinCasino_OnAddonCompartmentLeave
 ## X-License: Code: MIT. Bungee and Rubik fonts: SIL Open Font License.
 
+Core\Log.lua
 Core\Init.lua
 Core\Util.lua
 Core\Comm.lua
 Core\Rolls.lua
 UI\Theme.lua
 UI\Widgets.lua
+UI\LogWindow.lua
 Games\Jackpot.lua
 Games\Derby.lua
 UI\Minimap.lua

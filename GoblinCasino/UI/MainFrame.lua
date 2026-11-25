@@ -165,6 +165,27 @@ local function CreateHeader(f, body)
 	history:SetScript("OnClick", function()
 		Main:ShowView(Main.view == "history" and (J.round and J.round.game or "lobby") or "history")
 	end)
+
+	-- Debug log (bug icon): opens the log ready to copy
+	local bug = T.DarkButton(body, "", 36, 36)
+	bug:SetPoint("RIGHT", history, "LEFT", -8, 0)
+	local icon = bug:CreateTexture(nil, "ARTWORK")
+	icon:SetPoint("CENTER")
+	icon:SetSize(24, 24)
+	local bugIcon = "Interface\\Icons\\Spell_Nature_InsectSwarm"
+	for _, path in ipairs({ "Interface\\HelpFrame\\HelpIcon-Bug", bugIcon }) do
+		if not GetFileIDFromPath or GetFileIDFromPath(path) then bugIcon = path; break end
+	end
+	icon:SetTexture(bugIcon)
+	if bugIcon:find("Icons") then icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) end
+	bug:HookScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+		GameTooltip:SetText("Debug log")
+		GameTooltip:AddLine("Everything Goblin Casino did: rounds, messages, rolls, errors.\nClick, then Ctrl+C to copy it.", 1, 1, 1, true)
+		GameTooltip:Show()
+	end)
+	bug:HookScript("OnLeave", function() GameTooltip:Hide() end)
+	bug:SetScript("OnClick", function() ns.LogWindow:Toggle() end)
 end
 
 ---------------------------------------------------------------------------

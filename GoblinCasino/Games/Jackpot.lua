@@ -31,12 +31,34 @@ J.MAX_HISTORY = 200
 J.round = nil
 J.session = { rounds = 0, pool = 0 }
 
+-- One line describing the round, for the log.
+local function Describe(r)
+	if not r then return "no round" end
+	local parts = {}
+	for _, name in ipairs(U.SortedKeys(r.bets or {})) do parts[#parts + 1] = name .. "=" .. tostring(r.bets[name]) end
+	return string.format("%s %s host=%s phase=%s%s limit=%s bets={%s}%s%s", tostring(r.id), tostring(r.game),
+		tostring(r.host), tostring(r.phase), r.practice and " practice" or "", tostring(r.limit),
+		table.concat(parts, ","), r.warning and (" warning=" .. r.warning) or "", r.error and (" error=" .. r.error) or "")
+end
+
+J.Describe = Describe
+
 local listeners = {}
+local lastLogged
 function J.OnChange(fn) listeners[#listeners + 1] = fn end
 local function Changed()
+	-- every change of the round's state goes to the log (once)
+	local state = Describe(J.round)
+	if state ~= lastLogged then
+		lastLogged = state
+		ns.Log.Add("round", "%s", state)
+	end
 	for _, fn in ipairs(listeners) do
 		local ok, err = pcall(fn, J.round)
-		if not ok then geterrorhandler()(err) end
+		if not ok then
+			ns.Log.Error("UI update", err)
+			geterrorhandler()(err)
+		end
 	end
 end
 J.Changed = Changed
@@ -378,6 +400,12 @@ local function Finish(round, rolls, subs)
 	local def = J.Game(round)
 	round.rolls, round.subs = rolls, subs or {}
 	round.result = def.Compute(round.bets, rolls, round)
+	local res = round.result
+	ns.Log.Add("round", "%s result: winner %s gain %s seed %s rolls {%s}", round.id, res.winner, res.gain, res.seed,
+		EncodeMap(rolls, subs))
+	for _, t in ipairs(res.transfers or {}) do
+		ns.Log.Add("round", "  %s pays %s %sg", t.from, t.to, t.amount)
+	end
 	round.phase = "SPINNING"
 	round.spinStart = GetTime()
 	Record(round)
@@ -440,6 +468,8 @@ function J.HostDeadline(round)
 		end
 	end
 	if #missing == 0 and not selfMissing then return HostFinish(round) end
+	ns.Log.Add("round", "deadline: no roll from %s%s, host rolls for them", table.concat(missing, ","),
+		selfMissing and " (and the host)" or "")
 
 	local calls
 	if round.practice then
@@ -536,7 +566,10 @@ Comm.On("O", function(f, sender)
 	if mine then
 		if mine.id == id then return end
 		local replace, why = ReplaceFor(mine, id, sender)
-		if not replace then return end
+		if not replace then
+			ns.Log.Add("round", "ignored new round %s from %s: busy with round %s (%s)", id, sender, mine.id, mine.phase)
+			return
+		end
 		if why then ns.Print(why) end
 	end
 	local def = J.games[game]
@@ -601,10 +634,15 @@ Comm.On("R", function(f, sender)
 	for name in pairs(round.bets) do
 		local roll = rolls[name]
 		if not roll then
+			ns.Log.Add("round", "check: %s has no roll in the host's list", name)
 			problems = problems + 1
 		elseif subs[name] then
-			if not extra[roll] and not SawRoll(round, round.host, roll) then problems = problems + 1 end
+			if not extra[roll] and not SawRoll(round, round.host, roll) then
+				ns.Log.Add("round", "check: substitute roll %s for %s was never seen from the host", roll, name)
+				problems = problems + 1
+			end
 		elseif round.seen[name] and round.seen[name] ~= roll and not SawRoll(round, name, roll) then
+			ns.Log.Add("round", "check: host says %s rolled %s, this client saw %s", name, roll, round.seen[name])
 			problems = problems + 1
 		end
 	end
@@ -677,5 +715,26 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("GROUP_ROSTER_UPDATE")
 events:SetScript("OnEvent", function()
 	local ok, err = pcall(CheckRoster)
-	if not ok and ns.Debug then ns.Debug("roster check failed: %s", tostring(err)) end
+	if not ok then ns.Log.Error("roster check", err) end
 end)
+
+---------------------------------------------------------------------------
+-- Log every player/host action with its arguments and outcome ("Bets are closed." and the like),
+-- so the log shows what was clicked and why it did nothing.
+---------------------------------------------------------------------------
+for _, fname in ipairs({ "Open", "SetLimit", "OpenBets", "Lock", "Cancel", "Abandon", "Bet", "RollNow" }) do
+	local original = J[fname]
+	J[fname] = function(...)
+		local n = select("#", ...)
+		local args = {}
+		for i = 1, n do args[i] = tostring((select(i, ...))) end
+		local results = { original(...) }
+		local out = {}
+		for i = 1, 2 do
+			if results[i] ~= nil then out[#out + 1] = tostring(results[i]) end
+		end
+		ns.Log.Add("action", "%s(%s)%s", fname, table.concat(args, ", "),
+			#out > 0 and (" -> " .. table.concat(out, ", ")) or "")
+		return unpack(results, 1, 2)
+	end
+end

@@ -30,6 +30,7 @@ events:SetScript("OnEvent", function(self, _, name)
 	GoblinCasinoDB = GoblinCasinoDB or {}
 	ApplyDefaults(GoblinCasinoDB, DEFAULTS)
 	ns.db = GoblinCasinoDB
+	ns.Log.Init(ns.db)
 	-- practice mode (PLAY starts a round with bots) is off at every login; /casino practice turns
 	-- it on for the session only. Older versions saved it, so drop that.
 	ns.practice = false
@@ -53,6 +54,8 @@ SlashCmdList.GOBLINCASINO = function(msg)
 	elseif msg == "history" then
 		ns.Main:Get():Show()
 		ns.Main:ShowView("history")
+	elseif msg == "log" then
+		ns.LogWindow:Toggle()
 	elseif msg == "models" then
 		ns.ModelTest:Toggle()
 	elseif msg == "debug" then
@@ -74,7 +77,7 @@ SlashCmdList.GOBLINCASINO = function(msg)
 			ns.Print(err .. " Usage: /casino limit 100")
 		end
 	elseif msg == "help" then
-		ns.Print("/casino - open/close, /casino practice - practice mode with bots on/off, /casino limit N - stake limit when you host, /casino minimap - minimap icon, /casino reset - window position.")
+		ns.Print("/casino - open/close, /casino practice - practice mode with bots on/off, /casino limit N - stake limit when you host, /casino minimap - minimap icon, /casino reset - window position, /casino log - debug log to copy.")
 	else
 		ns.Main:Toggle()
 	end

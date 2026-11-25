@@ -55,10 +55,12 @@ local function Pump()
 	if not channel then wipe(queue); return end
 	local msg = table.remove(queue, 1)
 	local ok, res = pcall(C_ChatInfo.SendAddonMessage, PREFIX, msg, channel)
+	if not ok then ns.Log.Error("SendAddonMessage", res) end
 	-- the server said "too fast": keep the message and try again on the next tick
 	local R = Enum.SendAddonMessageResult
 	if ok and R and (res == R.AddonMessageThrottle or res == R.ChannelThrottle) then
 		table.insert(queue, 1, msg)
+		ns.Log.Add("comm", "throttled by the server, retrying")
 	end
 end
 
@@ -68,6 +70,7 @@ end
 -- instead of being read wrong.
 function Comm.Send(...)
 	local text = table.concat({ ... }, "^")
+	ns.Log.Add("comm", "send %s (%d bytes)%s", text, #text, Comm.Restricted() and " - queued, messages blocked" or "")
 	if #text <= PART then
 		queue[#queue + 1] = "=" .. text
 	else
@@ -96,7 +99,10 @@ local function Dispatch(text, sender)
 	local fn = handlers[fields[1]]
 	if fn then
 		local ok, err = pcall(fn, fields, sender)
-		if not ok then geterrorhandler()(err) end
+		if not ok then
+			ns.Log.Error("handler " .. tostring(fields[1]), err)
+			geterrorhandler()(err)
+		end
 	end
 end
 
@@ -104,12 +110,20 @@ local GROUP_CHANNELS = { PARTY = true, RAID = true, INSTANCE_CHAT = true }
 
 local function OnAddonMessage(prefix, text, channel, sender)
 	if prefix ~= PREFIX then return end
-	if not GROUP_CHANNELS[channel] then return end -- never from whispers or other channels
-	if ns.Rolls and ns.Rolls.debug and ns.Debug then
-		ns.Debug("addon msg from %s -> %s: %s", tostring(sender), tostring(U.Canonical(sender)), (text:gsub("|", "||")))
+	if not GROUP_CHANNELS[channel] then
+		ns.Log.Add("comm", "ignored %s from %s on %s (not a group channel)", text, sender, channel)
+		return
 	end
-	sender = U.Canonical(sender)
-	if not sender or sender == U.Me() then return end -- our own messages are applied locally
+	local key = U.Canonical(sender)
+	if key and key == U.Me() then
+		-- our own message coming back (already applied locally); logged with the raw sender name,
+		-- which shows how the server names this player
+		ns.Log.Add("comm", "echo %s (own message, sender %s)", text, sender)
+		return
+	end
+	ns.Log.Add("comm", "recv %s from %s%s on %s", text, sender, key ~= sender and (" (as " .. tostring(key) .. ")") or "", channel)
+	sender = key
+	if not sender then return end
 	local mark, body = text:sub(1, 1), text:sub(2)
 	if mark == "=" then
 		buffers[sender] = nil
