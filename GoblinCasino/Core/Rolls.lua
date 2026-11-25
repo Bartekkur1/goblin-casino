@@ -100,8 +100,11 @@ local function IsSecret(v)
 end
 
 local function Debug(msg, ...)
+	ns.Log.Add("debug", msg, ...)
 	if not Rolls.debug then return end
-	ns.Print("|cff9d8fbf[debug]|r " .. msg:format(...))
+	local ok, text = pcall(string.format, msg, ...)
+	-- "|" shown as typed in chat (links and colors are what we want to see)
+	ns.Print("|cff9d8fbf[debug]|r " .. (tostring(ok and text or msg):gsub("|", "||")))
 end
 ns.Debug = Debug
 
@@ -114,7 +117,7 @@ sniffer:SetScript("OnEvent", function(_, event, ...)
 		local v = select(i, ...)
 		if type(v) == "string" and not IsSecret(v)
 			and (v:find("1000000", 1, true) or v:find("1,000,000", 1, true) or v:lower():find("roll", 1, true)) then
-			Debug("event %s arg %d: %s", event, i, (v:gsub("|", "||")))
+			Debug("event %s arg %d: %s", event, i, v)
 		end
 	end
 end)
@@ -138,9 +141,11 @@ events:SetScript("OnEvent", function(_, _, msg)
 		return
 	end
 	local ok, name, roll, low, high = pcall(Rolls.Parse, msg)
-	if Rolls.debug and type(msg) == "string" and msg:find("%d") then
-		Debug("raw: %s", (msg:gsub("|", "||")))
-		Debug("parsed: %s", ok and name and (name .. " " .. tostring(roll) .. " (" .. tostring(low) .. "-" .. tostring(high) .. ")") or ("no match, pattern " .. Pattern().pattern:gsub("|", "||")))
+	-- every roll-looking line goes to the log (and to chat in debug mode)
+	if type(msg) == "string" and (name or msg:find("1000000", 1, true) or msg:find("1,000,000", 1, true)
+		or (Rolls.debug and msg:find("%d"))) then
+		Debug("raw: %s", msg)
+		Debug("parsed: %s", ok and name and (name .. " " .. tostring(roll) .. " (" .. tostring(low) .. "-" .. tostring(high) .. ")") or ("no match, pattern " .. Pattern().pattern))
 	end
 	if not ok or not name or not roll then return end
 	if low ~= Rolls.MIN or high ~= Rolls.MAX then
@@ -151,6 +156,7 @@ events:SetScript("OnEvent", function(_, _, msg)
 	for _, fn in ipairs(listeners) do
 		local ok2, err = pcall(fn, name, roll)
 		if not ok2 then
+			ns.Log.Error("roll listener", err)
 			Debug("|cffff6b6blistener error:|r %s", tostring(err))
 			geterrorhandler()(err)
 		end

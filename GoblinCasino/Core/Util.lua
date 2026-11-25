@@ -65,6 +65,18 @@ function U.GroupRoster()
 	return set, incomplete
 end
 
+-- False only when `name` is in the group and offline.
+function U.IsOnline(name)
+	local raid = IsInRaid()
+	for i = 1, GetNumGroupMembers() do
+		local unit = raid and ("raid" .. i) or ("party" .. i)
+		if UnitExists(unit) and U.Canonical(GetUnitName(unit, true)) == name then
+			return UnitIsConnected(unit) and true or false
+		end
+	end
+	return true
+end
+
 function U.InGroup(name)
 	return U.GroupRoster()[name] == true
 end

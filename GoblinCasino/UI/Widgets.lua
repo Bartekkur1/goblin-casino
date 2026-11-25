@@ -117,6 +117,30 @@ function Widgets.AmountBox(parent, width, height, size)
 	return box
 end
 
+-- The group unit ("player", "party2", "raid7") of a player by their engine name, if any.
+function Widgets.UnitFor(name)
+	local U = ns.Util
+	if not name then return nil end
+	if name == U.Me() then return "player" end
+	local raid = IsInRaid()
+	for i = 1, GetNumGroupMembers() do
+		local unit = raid and ("raid" .. i) or ("party" .. i)
+		if UnitExists(unit) and U.Canonical(GetUnitName(unit, true)) == name then return unit end
+	end
+end
+
+-- 3D avatar for a player: their own character when the client can show it (themselves, or a
+-- group member close enough to be seen), otherwise the creature `skin` (a display ID).
+-- Returns a key that changes when what is shown changes.
+function Widgets.SetAvatar(model, name, skin)
+	local unit = Widgets.UnitFor(name)
+	if unit and UnitIsVisible(unit) then
+		if pcall(model.SetUnit, model, unit) then return "unit:" .. name end
+	end
+	pcall(model.SetDisplayInfo, model, skin)
+	return "skin:" .. tostring(skin)
+end
+
 -- "1st", "2nd", "3rd", "4th" ...
 function Widgets.Ordinal(n)
 	local tens = n % 100

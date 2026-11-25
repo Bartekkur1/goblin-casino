@@ -7,9 +7,9 @@ local C, hex = T.C, T.hex
 local View = {}
 ns.HistoryView = View
 
-local RED, ORANGE, DIM = hex("ff6b6b"), hex("ffb347"), hex("9d8fbf")
+local RED, DIM = hex("ff6b6b"), hex("9d8fbf")
 local LEFT_W = 452
-local GAME_COLOR = { wheel = C.lilac, derby = C.teal }
+local GAME_COLOR = { wheel = C.lilac, derby = C.teal, sapper = C.orange or hex("ff9a3c"), onyxia = hex("ff5c5c") }
 
 StaticPopupDialogs["GOBLINCASINO_CLEAR_HISTORY"] = {
 	text = "Clear the whole Goblin Casino history? This can't be undone.",
@@ -40,9 +40,9 @@ local function NetFor(entry, name)
 end
 
 local function Played(entry, name)
-	if entry.winner == name then return true end
+	if entry.winner == name or entry.loser == name then return true end
 	for _, t in ipairs(entry.transfers or {}) do
-		if t.from == name then return true end
+		if t.from == name or t.to == name then return true end
 	end
 	return false
 end
@@ -157,12 +157,17 @@ function View.Create(parent, width, height)
 				myTotal, myRounds = myTotal + net, myRounds + 1
 			end
 			local game = J.games[e.game or "wheel"]
-			local winnerText = U.Short(e.winner) .. (e.note and (" (" .. e.note .. ")") or "")
+			local headline
+			if e.loser then
+				headline = U.Short(e.loser) .. " -" .. U.Thousands(Gain(e)) .. "g"
+			else
+				headline = U.Short(e.winner) .. (e.note and (" (" .. e.note .. ")") or "") .. " +" .. U.Thousands(Gain(e)) .. "g"
+			end
 			data[#data + 1] = {
 				color = e.practice and DIM or (GAME_COLOR[e.game] or C.gold),
 				left = When(e.time) .. "  " .. (game and game.title or "?"),
 				leftColor = e.practice and DIM or C.text,
-				mid = winnerText .. " +" .. U.Thousands(Gain(e)) .. "g",
+				mid = headline,
 				right = mine and Signed(net) or "|cff9d8fbf-|r",
 				mine = e == selected,
 				entry = e,
@@ -177,7 +182,8 @@ function View.Create(parent, width, height)
 			end
 			if not e.practice then
 				if e.winner then Add(e.winner) end
-				for _, t in ipairs(e.transfers or {}) do Add(t.from) end
+				if e.loser then Add(e.loser) end
+				for _, t in ipairs(e.transfers or {}) do Add(t.from); Add(t.to) end
 			end
 		end
 		if not selectedShown then selected = nil end -- cleared, or hidden by the practice filter
@@ -194,12 +200,13 @@ function View.Create(parent, width, height)
 			right.meta:SetText("")
 			backToStandings:Show()
 			local rows = {}
+			local who = selected.me or me -- the character that played it (maybe not this one)
 			for _, t in ipairs(selected.transfers or {}) do
 				rows[#rows + 1] = {
 					color = GAME_COLOR[selected.game] or C.gold,
 					left = U.Short(t.from), mid = "pays " .. U.Short(t.to), right = U.Gold(t.amount),
-					mine = t.from == me or t.to == me,
-					leftColor = t.from == me and C.gold or C.text,
+					mine = t.from == who or t.to == who,
+					leftColor = t.from == who and C.gold or C.text,
 				}
 			end
 			side:SetData(rows)

@@ -7,9 +7,29 @@ local View = {}
 ns.WheelView = View
 
 local ROWS, ROW_H = 9, 26
-local RADIUS = 128
+local RADIUS = 100
 local LEFT_W = 320
+local WHEEL_TOP = -40        -- without the ogre
+local WHEEL_TOP_OGRE = -128  -- lower, so the ogre's head and shoulders show above it
 local RED, ORANGE, DIM = hex("ff6b6b"), hex("ffb347"), hex("9d8fbf")
+
+-- The ogre croupier stands behind the wheel: his head, shoulders and arms show around it. Creature
+-- (NPC) IDs for SetCreature, the first one that loads is used; /casino models shows them all.
+local OGRES = {
+	5229,  -- Gordunni Ogre
+	1178,  -- Mo'grosh Ogre
+	2562,  -- Boulderfist Ogre
+	11501, -- King Gordok
+	18069, -- Mogor
+}
+local OGRE_W, OGRE_H, OGRE_TOP = 320, 340, -6 -- his frame; the feet are hidden behind the wheel
+local OGRE_ANIMS = {             -- the first one the model has is played
+	idle = { 0 },
+	talk = { 60, 70, 0 },        -- talk, laugh
+	ready = { 25, 26, 27, 0 },   -- ready stance: the rolls are coming in
+	slap = { 16, 17, 18, 0 },    -- attack: he gives the wheel a whack to start it
+	roar = { 74, 55, 68, 0 },    -- roar, battle roar, cheer: the result
+}
 
 local PHASES = {
 	SETUP = { "SETUP", C.gold },
@@ -30,6 +50,91 @@ end
 
 local function CreateStakeBox(parent)
 	return ns.Widgets.AmountBox(parent, 96, 34, 16)
+end
+
+-- The ogre (a model behind the wheel). ogre:Update(round) each frame plays what fits the moment;
+-- onFail() is called when no ogre model loads on this client (the wheel then moves back up).
+local function CreateOgre(v, onFail)
+	local m = CreateFrame("PlayerModel", nil, v)
+	m:SetSize(OGRE_W, OGRE_H)
+	m:SetPoint("TOP", v, "TOPLEFT", LEFT_W / 2, OGRE_TOP)
+	m:SetFrameLevel(v:GetFrameLevel()) -- under the wheel
+	local state = { index = 0, cache = {} }
+
+	local function Try(index)
+		state.index, state.at, state.loaded, state.anim, state.cache = index, GetTime(), false, nil, {}
+		pcall(m.SetCreature, m, OGRES[index])
+		pcall(m.SetFacing, m, 0)
+	end
+	m:SetScript("OnModelLoaded", function(self)
+		state.loaded, state.good = true, state.index
+		pcall(self.SetFacing, self, 0)
+		if state.anim then pcall(self.SetAnimation, self, state.anim) end
+	end)
+
+	local function Play(list)
+		local key = table.concat(list, ",")
+		local id = state.cache[key]
+		if id == nil then
+			for _, a in ipairs(list) do
+				local ok, has = pcall(m.HasAnimation, m, a)
+				if ok and has then id = a; break end
+			end
+			-- before the model has loaded HasAnimation knows nothing: ask again later
+			if state.loaded then state.cache[key] = id or false end
+		end
+		id = id or list[#list]
+		if state.anim ~= id then
+			state.anim = id
+			pcall(m.SetAnimation, m, id)
+		end
+	end
+
+	local function Want(round, now)
+		if not round then return OGRE_ANIMS.idle end
+		local since = round.spinStart and (now - round.spinStart)
+		if round.phase == "SPINNING" and since then
+			if since < 1.2 then return OGRE_ANIMS.slap end
+			if since < J.SPIN_SECONDS then return OGRE_ANIMS.idle end
+			return OGRE_ANIMS.roar
+		elseif round.phase == "DONE" and since and since < J.SPIN_SECONDS + 4 then
+			return OGRE_ANIMS.roar
+		elseif round.phase == "ROLLING" then
+			return OGRE_ANIMS.ready
+		end
+		-- now and then he has something to say (3 seconds in every 10)
+		return (now % 10) < 3 and OGRE_ANIMS.talk or OGRE_ANIMS.idle
+	end
+
+	local ogre = {}
+	function ogre:Update(round)
+		if state.failed then return end
+		local now = GetTime()
+		-- the model didn't load: the next ogre, or none at all
+		if state.index > 0 and not state.loaded and not state.good and now - state.at > 4 then
+			if state.index < #OGRES then
+				Try(state.index + 1)
+			else
+				state.failed = true
+				m:Hide()
+				onFail()
+				return
+			end
+		end
+		Play(Want(round, now))
+	end
+	-- a model set while hidden may never load: set it again each time the screen opens
+	function ogre:Show()
+		if state.failed then return end
+		if state.index == 0 then Try(state.good or 1) end
+	end
+	function ogre:Hide()
+		state.index = 0
+	end
+	function ogre:Present()
+		return state.loaded and not state.failed
+	end
+	return ogre
 end
 
 ---------------------------------------------------------------------------
@@ -55,9 +160,14 @@ function View.Create(parent, width, height)
 	hostInfo:SetJustifyH("RIGHT")
 	hostInfo:SetPoint("TOPRIGHT", 0, -8)
 
-	-- left: wheel and pool
-	local wheel = Wheel.Create(v, RADIUS)
-	wheel:SetPoint("TOP", v, "TOPLEFT", LEFT_W / 2, -40)
+	-- left: the ogre behind the wheel, the pool under it
+	local wheel
+	local ogre = CreateOgre(v, function()
+		wheel:ClearAllPoints()
+		wheel:SetPoint("TOP", v, "TOPLEFT", LEFT_W / 2, WHEEL_TOP)
+	end)
+	wheel = Wheel.Create(v, RADIUS)
+	wheel:SetPoint("TOP", v, "TOPLEFT", LEFT_W / 2, WHEEL_TOP_OGRE)
 	local poolLabel = T.Text(v, T.FONT_BOLD, 10, C.textDim)
 	poolLabel:SetJustifyH("CENTER")
 	poolLabel:SetPoint("TOP", wheel, "BOTTOM", 0, -2)
@@ -408,16 +518,31 @@ function View.Create(parent, width, height)
 		end
 	end
 
-	-- countdowns tick while the view is open
+	-- countdowns tick while the view is open; the ogre acts every frame
 	local clock = 0
 	v:SetScript("OnUpdate", function(self, dt)
+		local round = J.round
+		ogre:Update(round)
+		-- the ogre grunts as he whacks the wheel and roars at the result
+		if round and round.phase == "SPINNING" and round.spinStart then
+			ns.Sound.At("ding", round, GetTime() - round.spinStart, J.SPIN_SECONDS)
+		end
+		if round and round.phase == "SPINNING" and round.spinStart and ogre:Present() then
+			local since = GetTime() - round.spinStart
+			ns.Sound.At("slap", round, since, 0.15)
+			ns.Sound.At("ogreRoar", round, since, J.SPIN_SECONDS + 0.5)
+		end
 		clock = clock + dt
 		if clock >= 0.25 then
 			clock = 0
 			if J.round and J.round.phase == "ROLLING" then self:Refresh() end
 		end
 	end)
-	v:SetScript("OnShow", function(self) self:Refresh() end)
+	v:SetScript("OnShow", function(self)
+		ogre:Show()
+		self:Refresh()
+	end)
+	v:SetScript("OnHide", function() ogre:Hide() end)
 	J.OnChange(function()
 		if v:IsVisible() then v:Refresh() end
 	end)

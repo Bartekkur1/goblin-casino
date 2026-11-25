@@ -27,9 +27,11 @@ events:RegisterEvent("ADDON_LOADED")
 events:SetScript("OnEvent", function(self, _, name)
 	if name ~= ADDON then return end
 	self:UnregisterEvent("ADDON_LOADED")
-	GoblinCasinoDB = GoblinCasinoDB or {}
+	if type(GoblinCasinoDB) ~= "table" then GoblinCasinoDB = {} end
+	if type(GoblinCasinoDB.history) ~= "table" then GoblinCasinoDB.history = nil end
 	ApplyDefaults(GoblinCasinoDB, DEFAULTS)
 	ns.db = GoblinCasinoDB
+	ns.Log.Init(ns.db)
 	-- practice mode (PLAY starts a round with bots) is off at every login; /casino practice turns
 	-- it on for the session only. Older versions saved it, so drop that.
 	ns.practice = false
@@ -53,8 +55,15 @@ SlashCmdList.GOBLINCASINO = function(msg)
 	elseif msg == "history" then
 		ns.Main:Get():Show()
 		ns.Main:ShowView("history")
+	elseif msg == "log" then
+		ns.LogWindow:Toggle()
 	elseif msg == "models" then
 		ns.ModelTest:Toggle()
+	elseif msg == "sounds" then
+		ns.Sound.ToggleTest()
+	elseif msg == "sound" then
+		ns.Sound.SetEnabled(not ns.Sound.Enabled())
+		ns.Print("sounds " .. (ns.Sound.Enabled() and "|cff4dff9aON|r." or "|cffff6b6bOFF|r. Turn them on with /casino sound."))
 	elseif msg == "debug" then
 		ns.Rolls.SetDebug(not ns.Rolls.debug)
 		ns.Print("roll debug " .. (ns.Rolls.debug and "|cff4dff9aON|r (stays on after /reload). Now /roll or click ROLL! and send the [debug] lines." or "|cffff6b6bOFF|r."))
@@ -74,7 +83,7 @@ SlashCmdList.GOBLINCASINO = function(msg)
 			ns.Print(err .. " Usage: /casino limit 100")
 		end
 	elseif msg == "help" then
-		ns.Print("/casino - open/close, /casino practice - practice mode with bots on/off, /casino limit N - stake limit when you host, /casino minimap - minimap icon, /casino reset - window position.")
+		ns.Print("/casino - open/close, /casino practice - practice mode with bots on/off, /casino limit N - stake limit when you host, /casino sound - sounds on/off, /casino minimap - minimap icon, /casino reset - window position, /casino log - debug log to copy.")
 	else
 		ns.Main:Toggle()
 	end

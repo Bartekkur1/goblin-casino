@@ -11,9 +11,7 @@ local OUTER, EDGE, PAD_X, PAD_Y, GAP = 8, 2, 20, 18, 12
 local BODY_W = W - 2 * (OUTER + EDGE) - 2 * PAD_X
 local BODY_H = H - 2 * (OUTER + EDGE) - 2 * PAD_Y
 local HEADER_H, BANNER_H, TICKER_H = 46, 58, 30
--- game tiles: one row of tall cards between the banner and the ticker
-local CARD_PAD, ICON = 16, 96
-local CARD_W = (BODY_W - GAP) / 2
+-- game cards: the scrolling area between the banner and the ticker (see CreateGameList)
 local CARD_H = BODY_H - HEADER_H - BANNER_H - TICKER_H - 3 * GAP
 local WHITE = hex("ffffff")
 
@@ -26,6 +24,35 @@ local GAMES = {
 		accent = C.teal, status = "READY", statusColor = C.green,
 		meta = "Same entry for everyone  ·  up to 20 runners",
 		onPlay = function() Main:StartGame("derby") end,
+	},
+	{
+		key = "sapper",
+		title = "Hot Sapper",
+		desc = "A lit sapper charge flies round the circle, faster and faster. Whoever holds it when it blows pays everyone.",
+		icon = {
+			"Interface\\Icons\\INV_Gizmo_SuperSapperCharge",
+			"Interface\\Icons\\INV_Misc_Bomb_08",
+			"Interface\\Icons\\INV_Misc_Bomb_05",
+			"Interface\\Icons\\INV_Misc_Bomb_02",
+			"Interface\\Icons\\Spell_Fire_SelfDestruct",
+		},
+		accent = C.orange, status = "READY", statusColor = C.green,
+		meta = "Same entry  ·  one pays, everyone else wins",
+		onPlay = function() Main:StartGame("sapper") end,
+	},
+	{
+		key = "onyxia",
+		title = "Onyxia's Deep Breath",
+		desc = "The raid on Onyxia's platform. Wave after wave of fire, and the last raider standing loots the pot.",
+		icon = {
+			"Interface\\Icons\\Achievement_Boss_Onyxia",
+			"Interface\\Icons\\INV_Misc_Head_Dragon_Black",
+			"Interface\\Icons\\INV_Misc_Head_Dragon_01",
+			"Interface\\Icons\\Spell_Fire_Fire",
+		},
+		accent = hex("ff5c5c"), status = "READY", statusColor = C.green,
+		meta = "Any stake  ·  bigger stake, thicker cloak",
+		onPlay = function() Main:StartGame("onyxia") end,
 	},
 	{
 		key = "wheel",
@@ -105,10 +132,24 @@ local function CreateHeader(f, body)
 	local face = T.Circle(emblem, HEADER_H - 6, "BORDER")
 	face:SetPoint("CENTER")
 	face:SetColorTexture(T.Unpack(Mix(C.goldDark, C.goldShadow, 0.35)))
-	local letter = T.Text(emblem, T.FONT_DISPLAY, 22, C.goldInk)
-	letter:SetJustifyH("CENTER")
-	letter:SetPoint("CENTER", 1, 0)
-	letter:SetText("G")
+	-- a goblin's face in the gold ring (the first icon this client has; a "G" if none)
+	local goblin
+	for _, path in ipairs({
+		"Interface\\Icons\\Achievement_Character_Goblin_Male",
+		"Interface\\Icons\\Achievement_Goblinhead",
+		"Interface\\Icons\\Achievement_Character_Goblin_Female",
+	}) do
+		if not GetFileIDFromPath or GetFileIDFromPath(path) then goblin = path; break end
+	end
+	if goblin then
+		face:SetTexture(goblin)
+		face:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- without the icon's own border
+	else
+		local letter = T.Text(emblem, T.FONT_DISPLAY, 22, C.goldInk)
+		letter:SetJustifyH("CENTER")
+		letter:SetPoint("CENTER", 1, 0)
+		letter:SetText("G")
+	end
 
 	local title = T.Text(body, T.FONT_DISPLAY, 26, C.gold)
 	title:SetPoint("TOPLEFT", emblem, "TOPRIGHT", 12, -1)
@@ -165,6 +206,57 @@ local function CreateHeader(f, body)
 	history:SetScript("OnClick", function()
 		Main:ShowView(Main.view == "history" and (J.round and J.round.game or "lobby") or "history")
 	end)
+
+	-- Debug log (bug icon): opens the log ready to copy
+	local bug = T.DarkButton(body, "", 36, 36)
+	bug:SetPoint("RIGHT", history, "LEFT", -8, 0)
+	local icon = bug:CreateTexture(nil, "ARTWORK")
+	icon:SetPoint("CENTER")
+	icon:SetSize(24, 24)
+	local bugIcon = "Interface\\Icons\\Spell_Nature_InsectSwarm"
+	for _, path in ipairs({ "Interface\\HelpFrame\\HelpIcon-Bug", bugIcon }) do
+		if not GetFileIDFromPath or GetFileIDFromPath(path) then bugIcon = path; break end
+	end
+	icon:SetTexture(bugIcon)
+	if bugIcon:find("Icons") then icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) end
+	bug:HookScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+		GameTooltip:SetText("Debug log")
+		GameTooltip:AddLine("Everything Goblin Casino did: rounds, messages, rolls, errors.\nClick, then Ctrl+C to copy it.", 1, 1, 1, true)
+		GameTooltip:Show()
+	end)
+	bug:HookScript("OnLeave", function() GameTooltip:Hide() end)
+	bug:SetScript("OnClick", function() ns.LogWindow:Toggle() end)
+
+	-- Sound on/off (also /casino sound)
+	local speaker = T.DarkButton(body, "", 36, 36)
+	speaker:SetPoint("RIGHT", bug, "LEFT", -8, 0)
+	local speakerIcon = speaker:CreateTexture(nil, "ARTWORK")
+	speakerIcon:SetPoint("CENTER")
+	speakerIcon:SetSize(22, 22)
+	local function Exists(path) return not GetFileIDFromPath or GetFileIDFromPath(path) end
+	local ON = Exists("Interface\\Common\\VoiceChat-Speaker") and "Interface\\Common\\VoiceChat-Speaker"
+		or "Interface\\Icons\\INV_Misc_Bell_01"
+	local OFF = Exists("Interface\\Common\\VoiceChat-Muted") and "Interface\\Common\\VoiceChat-Muted" or ON
+	local function ShowSound(on)
+		speakerIcon:SetTexture(on and ON or OFF)
+		speakerIcon:SetDesaturated(not on)
+		speakerIcon:SetAlpha(on and 1 or 0.5)
+		if (on and ON or OFF):find("Icons") then speakerIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92) end
+	end
+	ShowSound(ns.Sound.Enabled())
+	ns.Sound.onToggle = ShowSound
+	speaker:SetScript("OnClick", function()
+		ns.Sound.SetEnabled(not ns.Sound.Enabled())
+		ns.Sound.Play("open")
+	end)
+	speaker:HookScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+		GameTooltip:SetText(ns.Sound.Enabled() and "Sound: on" or "Sound: off")
+		GameTooltip:AddLine("Goblin Casino's sounds: a round opening, your turn to roll, your result, and the games.\nClick to turn them " .. (ns.Sound.Enabled() and "off." or "on."), 1, 1, 1, true)
+		GameTooltip:Show()
+	end)
+	speaker:HookScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
 ---------------------------------------------------------------------------
@@ -237,72 +329,69 @@ local function PickIcon(icon)
 	return icon[#icon]
 end
 
-local function CreateCard(body, game, index)
-	local col = (index - 1) % 2
-	local row = math.floor((index - 1) / 2)
-	local top = HEADER_H + GAP + BANNER_H + GAP
+-- One game card (icon on the left, text beside it, status and PLAY at the bottom right).
+local function CreateCard(parent, game, w, h, x, y)
 	local accent = game.accent
+	local ICON, PAD = 76, 14
 
-	local card = CreateFrame("Frame", nil, body)
-	card:SetSize(CARD_W, CARD_H)
-	card:SetPoint("TOPLEFT", col * (CARD_W + GAP), -(top + row * (CARD_H + GAP)))
+	local card = CreateFrame("Frame", nil, parent)
+	card:SetSize(w, h)
+	card:SetPoint("TOPLEFT", x, y)
 	T.Gradient(card, "HORIZONTAL", Mix(accent, C.bgDeep, 0.62), Mix(accent, C.bgDeep, 0.84)):SetAllPoints()
 	local border = T.Border(card, accent, 1)
 	border:SetColor(accent, 0.7)
-	local glow = T.Glow(card, accent, 7, 0.25)
+	local glow = T.Glow(card, accent, 4, 0.25)
 
-	-- big icon at the top, centered
 	local box = CreateFrame("Frame", nil, card)
 	box:SetSize(ICON, ICON)
-	box:SetPoint("TOP", 0, -24)
+	box:SetPoint("TOPLEFT", PAD, -PAD)
 	T.Solid(box, Mix(accent, C.bgDeep, 0.85)):SetAllPoints()
 	T.Border(box, accent, 1):SetColor(accent, 0.6)
-	T.Glow(box, accent, 6, 0.35)
+	T.Glow(box, accent, 5, 0.35)
 	local icon = box:CreateTexture(nil, "ARTWORK")
 	icon:SetPoint("TOPLEFT", 3, -3)
 	icon:SetPoint("BOTTOMRIGHT", -3, 3)
 	icon:SetTexture(PickIcon(game.icon))
 	icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-	-- title, description, rules line
-	local title = T.Text(card, T.FONT_DISPLAY, 22, Mix(accent, WHITE, 0.55))
-	title:SetJustifyH("CENTER")
-	title:SetPoint("TOP", box, "BOTTOM", 0, -16)
+	-- title, description, rules line beside the icon
+	local textW = w - ICON - 3 * PAD
+	local title = T.Text(card, T.FONT_DISPLAY, 17, Mix(accent, WHITE, 0.55))
+	title:SetPoint("TOPLEFT", box, "TOPRIGHT", PAD, -1)
+	title:SetWidth(textW)
+	title:SetWordWrap(false)
 	title:SetText(game.title:upper())
-	local desc = T.Text(card, T.FONT_BODY, 13, Mix(accent, WHITE, 0.85))
+	local desc = T.Text(card, T.FONT_BODY, 12, Mix(accent, WHITE, 0.85))
 	desc:SetAlpha(0.9)
-	desc:SetJustifyH("CENTER")
 	desc:SetJustifyV("TOP")
-	desc:SetPoint("TOP", title, "BOTTOM", 0, -10)
-	desc:SetWidth(CARD_W - 2 * 28)
-	desc:SetSpacing(3)
+	desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+	desc:SetWidth(textW)
+	desc:SetSpacing(2)
+	desc:SetMaxLines(3)
 	desc:SetText(game.desc)
-	local meta = T.Text(card, T.FONT_BOLD, 11, Mix(accent, WHITE, 0.35))
-	meta:SetJustifyH("CENTER")
-	meta:SetPoint("TOP", desc, "BOTTOM", 0, -10)
+	local meta = T.Text(card, T.FONT_BOLD, 10, Mix(accent, WHITE, 0.35))
+	meta:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", 0, -6)
+	meta:SetWidth(textW)
+	meta:SetWordWrap(false)
 	meta:SetText(game.meta or "")
 
-	-- bottom: status above a big PLAY button
-	local play = T.GoldButton(card, "PLAY", 170, 40)
-	play:SetPoint("BOTTOM", 0, 20)
-	play.label:SetFont(T.FONT_DISPLAY, 16, "")
+	-- bottom right: status pill, then a big PLAY button
+	local play = T.GoldButton(card, "PLAY", 120, 32)
+	play:SetPoint("BOTTOMRIGHT", -PAD, PAD)
+	play.label:SetFont(T.FONT_DISPLAY, 15, "")
 	local statusColor = game.statusColor or accent
 	local status = T.Pill(card, game.status, WithAlpha(statusColor, 0.16), statusColor)
-	-- the pill's frame is 1px wide with its label anchored at +10, so center it by its label
-	status:SetPoint("BOTTOM", play, "TOP", 0, 12)
+	-- the pill's background hugs its label, so place the label
+	status:SetPoint("BOTTOMLEFT")
 	status.label:ClearAllPoints()
-	status.label:SetPoint("CENTER", status, "CENTER", 0, 0)
-	game.statusPill, game.playButton = status, play
+	status.label:SetPoint("RIGHT", play, "LEFT", -20, 1)
+	game.statusPill, game.playButton, game.readyColor = status, play, statusColor
 
 	if game.soon then
 		play:SetUnavailable()
 	else
 		play:SetScript("OnClick", function()
-			if game.onPlay then
-				game.onPlay()
-			else
-				ns.Print(game.title .. " isn't ready yet. Try Ogre's Wheel!")
-			end
+			if game.onPlay then game.onPlay() end
 		end)
 	end
 
@@ -321,6 +410,55 @@ local function CreateCard(body, game, index)
 	play:HookScript("OnEnter", function() Hover(true) end)
 	play:HookScript("OnLeave", Leave)
 	return card
+end
+
+-- The games: two columns, two rows in view, the mouse wheel scrolls to more rows (with a thin
+-- scrollbar on the right once there are more games than fit).
+local function CreateGameList(lobby)
+	local INSET, BAR = 5, 12
+	local top = HEADER_H + GAP + BANNER_H + GAP
+	local viewH = CARD_H
+	local viewW = BODY_W - BAR
+	local cardW = (viewW - GAP - 2 * INSET) / 2
+	local rowH = (viewH - GAP - 2 * INSET) / 2
+	local rows = math.ceil(#GAMES / 2)
+	local contentH = rows * rowH + (rows - 1) * GAP + 2 * INSET
+	local maxScroll = math.max(0, contentH - viewH)
+
+	local scroll = CreateFrame("ScrollFrame", nil, lobby)
+	scroll:SetPoint("TOPLEFT", 0, -top)
+	scroll:SetSize(viewW, viewH)
+	local content = CreateFrame("Frame", nil, scroll)
+	content:SetSize(viewW, contentH)
+	scroll:SetScrollChild(content)
+	for i, game in ipairs(GAMES) do
+		local col, row = (i - 1) % 2, math.floor((i - 1) / 2)
+		CreateCard(content, game, cardW, rowH, INSET + col * (cardW + GAP), -(INSET + row * (rowH + GAP)))
+	end
+
+	local trackH = viewH - 2 * INSET
+	local track = T.Solid(lobby, WithAlpha(C.violet, 0.35), "ARTWORK")
+	track:SetPoint("TOPRIGHT", lobby, "TOPRIGHT", -3, -(top + INSET))
+	track:SetSize(4, trackH)
+	local thumb = T.Solid(lobby, C.pink, "OVERLAY")
+	thumb:SetWidth(4)
+	local thumbH = math.max(28, trackH * viewH / contentH)
+	thumb:SetHeight(thumbH)
+	local function UpdateBar()
+		local at = maxScroll > 0 and scroll:GetVerticalScroll() / maxScroll or 0
+		thumb:ClearAllPoints()
+		thumb:SetPoint("TOP", track, "TOP", 0, -(trackH - thumbH) * at)
+	end
+	track:SetShown(maxScroll > 0)
+	thumb:SetShown(maxScroll > 0)
+	UpdateBar()
+
+	scroll:EnableMouseWheel(true)
+	scroll:SetScript("OnMouseWheel", function(self, delta)
+		local target = self:GetVerticalScroll() - delta * (rowH + GAP)
+		self:SetVerticalScroll(math.max(0, math.min(maxScroll, target)))
+		UpdateBar()
+	end)
 end
 
 ---------------------------------------------------------------------------
@@ -357,11 +495,14 @@ end
 ---------------------------------------------------------------------------
 -- Window
 ---------------------------------------------------------------------------
+local ANCHORS = { TOPLEFT = true, TOP = true, TOPRIGHT = true, LEFT = true, CENTER = true, RIGHT = true,
+	BOTTOMLEFT = true, BOTTOM = true, BOTTOMRIGHT = true }
+
 local function RestorePosition(f)
 	f:ClearAllPoints()
 	local p = ns.db and ns.db.window
-	if type(p) == "table" and type(p.point) == "string" and tonumber(p.x) and tonumber(p.y) then
-		f:SetPoint(p.point, UIParent, type(p.relPoint) == "string" and p.relPoint or p.point, tonumber(p.x), tonumber(p.y))
+	if type(p) == "table" and ANCHORS[p.point] and tonumber(p.x) and tonumber(p.y) then
+		f:SetPoint(p.point, UIParent, ANCHORS[p.relPoint] and p.relPoint or p.point, tonumber(p.x), tonumber(p.y))
 	else
 		f:SetPoint("CENTER")
 	end
@@ -407,17 +548,19 @@ local function Create()
 	local lobby = CreateFrame("Frame", nil, body)
 	lobby:SetAllPoints(body)
 	CreateBanner(f, lobby)
-	for i, game in ipairs(GAMES) do
-		CreateCard(lobby, game, i)
-	end
+	CreateGameList(lobby)
 	CreateTicker(f, lobby)
 	local wheel = ns.WheelView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
 	wheel:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
 	local derby = ns.DerbyView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
 	derby:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
+	local sapper = ns.SapperView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
+	sapper:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
+	local onyxia = ns.OnyxiaView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
+	onyxia:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
 	local history = ns.HistoryView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
 	history:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
-	f.views = { lobby = lobby, wheel = wheel, derby = derby, history = history }
+	f.views = { lobby = lobby, wheel = wheel, derby = derby, sapper = sapper, onyxia = onyxia, history = history }
 	J.OnChange(function() Main:UpdateLobby() end)
 
 	f:RegisterEvent("PLAYER_MONEY")
@@ -433,10 +576,10 @@ local function Create()
 		Main:ShowView(J.round and J.round.game or "lobby")
 		-- the custom font may load a frame late; measure the gold text again once it has
 		C_Timer.After(0, function() Main:UpdateMoney() end)
-		if SOUNDKIT then PlaySound(SOUNDKIT.IG_MAINMENU_OPEN) end
+		ns.Sound.Play("open")
 	end)
 	f:SetScript("OnHide", function()
-		if SOUNDKIT then PlaySound(SOUNDKIT.IG_MAINMENU_CLOSE) end
+		ns.Sound.Play("close")
 	end)
 
 	RestorePosition(f)
@@ -510,7 +653,7 @@ function Main:UpdateLobby()
 					game.playButton:SetLabel("OPEN")
 				else
 					status = round.phase == "BETTING" and (J.Game(round).fixed and "ENTRIES OPEN" or "BETS OPEN") or "IN PROGRESS"
-					game.playButton:SetLabel(J.MyBet() and "OPEN" or "JOIN")
+					game.playButton:SetLabel((J.MyBet() or round.phase ~= "BETTING") and "OPEN" or "JOIN")
 				end
 			else
 				if round then
@@ -522,7 +665,12 @@ function Main:UpdateLobby()
 				end
 				game.playButton:SetLabel("PLAY")
 			end
+			local color = (status == "READY" and game.readyColor)
+				or ((status == "NEEDS A GROUP" or status == "AFTER THIS ROUND") and C.textDim)
+				or (status == "PRACTICE MODE" and C.orange) or C.gold
 			game.statusPill.label:SetText(status)
+			game.statusPill.label:SetTextColor(T.Unpack(color))
+			game.statusPill.back:SetColorTexture(color[1], color[2], color[3], 0.16)
 		end
 	end
 	if round and round.phase == "SETUP" then
@@ -537,7 +685,7 @@ function Main:UpdateLobby()
 			or "Invite your friends to a party or raid to play. Practice with bots: /casino practice")
 	end
 	-- a game screen without a round goes back to the lobby (history stays open)
-	if (self.view == "wheel" or self.view == "derby") and not J.round then self:ShowView("lobby") end
+	if self.view ~= "lobby" and self.view ~= "history" and not J.round then self:ShowView("lobby") end
 end
 
 function Main:ResetPosition()
