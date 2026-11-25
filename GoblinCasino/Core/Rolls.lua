@@ -93,6 +93,12 @@ function Rolls.Roll()
 	RandomRoll(Rolls.MIN, Rolls.MAX)
 end
 
+-- A roll in another range (Brewfest Brawl: a mug is /roll 10-35).
+function Rolls.RollRange(low, high)
+	if ns.Debug then ns.Debug("calling RandomRoll(%d, %d)", low, high) end
+	RandomRoll(low, high)
+end
+
 local function IsSecret(v)
 	if type(issecretvalue) ~= "function" then return false end
 	local ok, s = pcall(issecretvalue, v)
@@ -148,13 +154,10 @@ events:SetScript("OnEvent", function(_, _, msg)
 		Debug("parsed: %s", ok and name and (name .. " " .. tostring(roll) .. " (" .. tostring(low) .. "-" .. tostring(high) .. ")") or ("no match, pattern " .. Pattern().pattern))
 	end
 	if not ok or not name or not roll then return end
-	if low ~= Rolls.MIN or high ~= Rolls.MAX then
-		Debug("roll ignored: range %s-%s is not %d-%d", tostring(low), tostring(high), Rolls.MIN, Rolls.MAX)
-		return
-	end
-	Debug("roll %d by %s goes to %d listener(s)", roll, name, #listeners)
+	-- every range goes to the listeners: each game takes the rolls in the range it uses
+	Debug("roll %d (%s-%s) by %s goes to %d listener(s)", roll, tostring(low), tostring(high), name, #listeners)
 	for _, fn in ipairs(listeners) do
-		local ok2, err = pcall(fn, name, roll)
+		local ok2, err = pcall(fn, name, roll, low, high)
 		if not ok2 then
 			ns.Log.Error("roll listener", err)
 			Debug("|cffff6b6blistener error:|r %s", tostring(err))

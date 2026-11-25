@@ -29,6 +29,10 @@ Sound.CUES = {
 	ding = { 1100031, "UI_IG_STORE_PURCHASE_DELIVERED_TOAST_01", gap = 1, text = "Wheel: it stops" }, -- Darkmoon Faire bell
 	slap = { { 557659, 557663, 557654 }, gap = 1, text = "Wheel: the ogre whacks it" },        -- mOgreAttack1-3
 	ogreRoar = { { 557656, 557661, 557651 }, gap = 1, text = "Wheel: the ogre roars at the result" }, -- mOgreAggro1-3
+	-- Brewfest Brawl
+	gulp = { "U_CHAT_SCROLL_BUTTON", gap = 0.15, text = "Brewfest: a swig" },
+	passout = { 549159, "IG_QUEST_FAILED", gap = 0.3, text = "Brewfest: under the table" },  -- FleshGolemBelch
+	cheers = { 1100031, "READY_CHECK", gap = 1, text = "Brewfest: the winner" },           -- Darkmoon Faire bell
 	-- Murloc Derby
 	murlocStart = { 555998, gap = 1, text = "Derby: GO!" },                -- mMurlocPreAggroA
 	murlocWin = { 556000, 555997, gap = 1, text = "Derby: the winner crosses the line" }, -- mMurlocAggroOld
@@ -44,7 +48,7 @@ Sound.CUES = {
 
 -- The order in the test window.
 Sound.ORDER = { "invite", "roll", "win", "lose", "tick", "ding", "slap", "ogreRoar", "murlocStart", "murlocWin",
-	"pass", "fuse", "boom", "breath", "survive", "open", "close" }
+	"pass", "fuse", "boom", "breath", "survive", "gulp", "passout", "cheers", "open", "close" }
 
 function Sound.Enabled()
 	return not (ns.db and ns.db.mute)

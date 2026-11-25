@@ -17,6 +17,20 @@ local WHITE = hex("ffffff")
 
 local GAMES = {
 	{
+		key = "brewfest",
+		title = "Brewfest Brawl",
+		desc = "Mug after mug, you decide when to stop. Over 100% and you're under the table. The drunkest one still standing takes the pot.",
+		icon = {
+			"Interface\\Icons\\INV_Holiday_BrewfestBuff_01",
+			"Interface\\Icons\\INV_Drink_08",
+			"Interface\\Icons\\INV_Drink_05",
+			"Interface\\Icons\\INV_Misc_Bowl_01",
+		},
+		accent = hex("ffb347"), status = "READY", statusColor = C.green,
+		meta = "Same entry  ·  you choose when to stop",
+		onPlay = function() Main:StartGame("brewfest") end,
+	},
+	{
 		key = "derby",
 		title = "Murloc Derby",
 		desc = "Everyone enters a murloc for the same fee. Sprints, stumbles, photo finish, and the winner takes the pot.",
@@ -558,9 +572,12 @@ local function Create()
 	sapper:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
 	local onyxia = ns.OnyxiaView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
 	onyxia:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
+	local brewfest = ns.BrewfestView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
+	brewfest:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
 	local history = ns.HistoryView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
 	history:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
-	f.views = { lobby = lobby, wheel = wheel, derby = derby, sapper = sapper, onyxia = onyxia, history = history }
+	f.views = { lobby = lobby, wheel = wheel, derby = derby, sapper = sapper, onyxia = onyxia,
+		brewfest = brewfest, history = history }
 	J.OnChange(function() Main:UpdateLobby() end)
 
 	f:RegisterEvent("PLAYER_MONEY")
