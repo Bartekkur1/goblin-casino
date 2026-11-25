@@ -8,7 +8,7 @@ local C, hex = T.C, T.hex
 local LogWindow = {}
 ns.LogWindow = LogWindow
 
-local SHOWN_LINES = 800 -- the newest lines (everything is in SavedVariables anyway)
+local SHOWN_LINES = ns.Log.MAX -- all of it, earlier sessions included
 local frame
 
 local function Create()
@@ -81,11 +81,12 @@ local function Create()
 		box:SetFocus()
 		box:HighlightText()
 	end
-	-- read-only: typing puts the log back
+	-- read-only: typing puts the log back and gives the keyboard back to the game (Ctrl+C types
+	-- nothing, so copying still works)
 	box:SetScript("OnTextChanged", function(self, userInput)
 		if userInput then
 			self:SetText(current)
-			self:HighlightText()
+			self:ClearFocus()
 		end
 	end)
 	box:SetScript("OnEscapePressed", function() f:Hide() end)

@@ -12,11 +12,14 @@ Log.KEEP_PREVIOUS = 500 -- lines of earlier sessions kept at login
 
 local lines = {}        -- this table is GoblinCasinoDB.log once the saved variables are loaded
 
--- Server time (the same clock for every player, so two players' logs line up) plus milliseconds.
+-- Server time (the same clock for every player, so two players' logs line up to about a second),
+-- with milliseconds from the game's own timer: the offset is taken once, so stamps never go back.
+local offset
 local function Stamp()
 	local t = GetTime and GetTime() or 0
-	local now = GetServerTime and GetServerTime() or time()
-	return date("%H:%M:%S", now) .. string.format(".%03d", math.floor((t % 1) * 1000))
+	if not offset then offset = (GetServerTime and GetServerTime() or time()) - t end
+	local now = offset + t
+	return date("%H:%M:%S", math.floor(now)) .. string.format(".%03d", math.floor((now % 1) * 1000))
 end
 
 local function Text(v)
@@ -164,11 +167,14 @@ function Log.HookErrors()
 		pcall(function()
 			local text = tostring(msg)
 			local stack = debugstack and debugstack(2, 12, 0) or ""
-			if text:find(ADDON, 1, true) or stack:find(ADDON, 1, true) then
+			-- this handler is always on the stack itself, so its own lines don't count
+			local ours = {}
+			for line in stack:gmatch("[^\n]+") do
+				if line:find(ADDON, 1, true) and not line:find("Core[/\\]Log%.lua") then ours[#ours + 1] = line end
+			end
+			if text:find(ADDON, 1, true) or #ours > 0 then
 				Log.Add("ERROR", "%s", text)
-				for line in stack:gmatch("[^\n]+") do
-					if line:find(ADDON, 1, true) then Log.Add("ERROR", "  at %s", line) end
-				end
+				for _, line in ipairs(ours) do Log.Add("ERROR", "  at %s", line) end
 			end
 		end)
 		return previous(msg, ...)
