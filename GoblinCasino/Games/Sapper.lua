@@ -23,10 +23,9 @@ S.FIZZLE = 2.4        -- extra seconds a fizzle adds to a hold
 ---------------------------------------------------------------------------
 local function Compute(bets, rolls)
 	local names = U.SortedKeys(bets)
-	local parts, total = {}, 0
+	local parts = {}
 	for _, name in ipairs(names) do
 		parts[#parts + 1] = name .. ":" .. bets[name] .. ":" .. (rolls[name] or 0) .. ";"
-		total = total + bets[name]
 	end
 	local seed = U.FNV1a("sapper;" .. table.concat(parts))
 	local rng = U.NewRNG(seed)
@@ -41,7 +40,7 @@ local function Compute(bets, rolls)
 	return {
 		seed = seed,
 		names = names,
-		total = total,
+		total = entry * (#names - 1),       -- what changes hands (shown as the pot in history)
 		loser = loser,
 		gain = entry,                       -- what every other player gets
 		transfers = transfers,
@@ -101,7 +100,7 @@ function S.Script(round)
 		step.leave = step.land + hold
 		steps[k] = step
 		if fizzle[k] then
-			events[#events + 1] = { t = step.land + 0.35, text = "It fizzled out on " .. U.Short(step.who) .. "... phew!", kind = "fizzle", who = step.who }
+			events[#events + 1] = { t = step.land + 0.35, text = "Fizzled on " .. U.Short(step.who) .. "... phew!", kind = "fizzle", who = step.who }
 			events[#events + 1] = { t = step.land + S.FIZZLE - 0.2, text = "...NO WAIT, IT'S LIT AGAIN!", kind = "relit", who = step.who }
 		end
 		if k == math.floor(holds * 0.6) then

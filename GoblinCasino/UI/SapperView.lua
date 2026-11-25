@@ -151,7 +151,8 @@ function View.Create(parent, width, height)
 		if seat.skin == want and seat.facing == facing then return end
 		seat.facing = facing
 		seat.anim, seat.celebrate, seat.celebrateTries = nil, nil, nil
-		seat.skin = W.SetAvatar(seat.model, name, skin)
+		seat.skin = want -- not SetAvatar's key: if SetUnit fails, that one never matches and reloads
+		W.SetAvatar(seat.model, name, skin)
 		pcall(seat.model.SetFacing, seat.model, facing)
 		pcall(seat.model.SetCamDistanceScale, seat.model, CAM)
 		SetAnim(seat, ANIM.stand)
@@ -176,7 +177,7 @@ function View.Create(parent, width, height)
 	local seatOf = {}    -- name -> seat
 	local function Layout(names)
 		local n = #names
-		local size = n <= 4 and 104 or (n <= 6 and 92 or (n <= 9 and 78 or 66))
+		local size = n <= 4 and 104 or (n <= 6 and 92 or (n <= 9 and 78 or 58))
 		modelW, modelH = size, size
 		local rx = width / 2 - size / 2 - 40
 		local ry = STAGE_H / 2 - size / 2 - 22
@@ -243,14 +244,15 @@ function View.Create(parent, width, height)
 	charge:Hide()
 
 	-- the explosion: flash over the stage, blast rings and smoke at the loser
-	local flash = stage:CreateTexture(nil, "OVERLAY", nil, 7)
+	local fx = CreateFrame("Frame", nil, stage)
+	fx:SetAllPoints()
+	fx:SetFrameLevel(stage:GetFrameLevel() + 70)
+	-- on the effects frame, so it lights the players too (a stage texture is drawn under them)
+	local flash = fx:CreateTexture(nil, "OVERLAY", nil, 7)
 	flash:SetAllPoints()
 	flash:SetColorTexture(1, 0.85, 0.6, 1)
 	flash:SetBlendMode("ADD")
 	flash:SetAlpha(0)
-	local fx = CreateFrame("Frame", nil, stage)
-	fx:SetAllPoints()
-	fx:SetFrameLevel(stage:GetFrameLevel() + 70)
 	local blasts = {}
 	for i, c in ipairs({ { 1, 0.95, 0.6 }, { 1, 0.55, 0.12 }, { 0.9, 0.2, 0.05 } }) do
 		local b = T.Circle(fx, 10, "ARTWORK", i)
@@ -492,11 +494,13 @@ function View.Create(parent, width, height)
 				y = ay + (by - ay) * e - math.sin(math.pi * frac) * (30 + dist * 0.25)
 				rot = frac * math.pi * 2
 			end
-			charge:ClearAllPoints()
-			charge:SetPoint("CENTER", stage, "TOPLEFT", x, -y)
-			chargeIcon:SetRotation(rot)
+			-- offsets of a scaled frame are in its own scale, so they are divided by it
 			local nearEnd = Clamp((t - (boom - S.LAST_HOLD)) / S.LAST_HOLD, 0, 1)
-			charge:SetScale(1 + 0.5 * nearEnd + (nearEnd > 0 and 0.08 * math.sin(now * 25) or 0))
+			local scale = 1 + 0.5 * nearEnd + (nearEnd > 0 and 0.08 * math.sin(now * 25) or 0)
+			charge:SetScale(scale)
+			charge:ClearAllPoints()
+			charge:SetPoint("CENTER", stage, "TOPLEFT", x / scale, -y / scale)
+			chargeIcon:SetRotation(rot)
 			chargeIcon:SetVertexColor(1, 1 - 0.5 * nearEnd, 1 - 0.6 * nearEnd)
 			local lit = t >= 0 and not out
 			spark:SetShown(lit)
@@ -651,15 +655,18 @@ function View.Create(parent, width, height)
 		elseif round.phase == "BETTING" then
 			headline:SetText(count .. (count == 1 and " PLAYER" or " PLAYERS") .. "  ·  ENTRY " .. U.Thousands(entry) .. "G")
 			headline:SetTextColor(T.Unpack(C.gold))
-			local others = math.max(1, count - (inGame and 1 or 0))
+			local full = count >= S.MAX_PLAYERS and not inGame
+			local others = math.min(S.MAX_PLAYERS - 1, math.max(1, count - (inGame and 1 or 0)))
 			local worst = "If it blows up on you, you pay each other player " .. U.Gold(entry) .. ": "
 				.. U.Gold(entry * others) .. " with the circle as it is now, at most "
 				.. U.Gold(entry * (S.MAX_PLAYERS - 1)) .. " with " .. S.MAX_PLAYERS .. " players. Otherwise you get " .. U.Gold(entry) .. "."
 			local hint = (isHost and count < 2) and "You can light it once at least 2 players are in."
+			if full then worst = "The circle is full (" .. S.MAX_PLAYERS .. " players)." end
 			message:SetText(note or hint or worst)
 			message:SetTextColor(T.Unpack(note and noteColor or C.textDim))
 			joinBtn:SetLabel("JOIN  ·  " .. U.Thousands(entry) .. "G")
 			local entryBtn = inGame and leaveBtn or joinBtn
+			joinBtn:SetActive(not full)
 			if isHost then
 				ShowOnly(entryBtn, lockBtn, cancelBtn)
 				lockBtn:SetActive(count >= 2)
