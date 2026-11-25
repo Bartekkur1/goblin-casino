@@ -70,8 +70,20 @@ for _, file in ipairs(tests) do
 	end
 end
 
-print(string.format("\n%d passed, %d failed", passed, #failed))
+if passed == 0 and #failed == 0 then
+	failed[#failed + 1] = { file = "tests/run.lua", name = "runner", err = "no tests were run" }
+end
+local summary = string.format("%d passed, %d failed", passed, #failed)
+print("\n" .. summary)
 if onGitHub then
+	print("::notice title=Tests::" .. summary)
+	local out = os.getenv("GITHUB_STEP_SUMMARY")
+	local fh = out and io.open(out, "a")
+	if fh then
+		fh:write("### Tests: " .. summary .. "\n")
+		for _, f in ipairs(failed) do fh:write("- " .. f.name .. "\n") end
+		fh:close()
+	end
 	for _, f in ipairs(failed) do
 		-- the first line of the failing test file in the traceback, else the file itself
 		local line = tostring(f.err):match(f.file:gsub("%p", "%%%0") .. ":(%d+):") or "1"
