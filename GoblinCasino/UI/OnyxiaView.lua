@@ -76,11 +76,14 @@ function View.Create(parent, width, height)
 
 	-- Onyxia
 	local onyFrame = CreateFrame("Frame", nil, stage)
-	-- A model is cut off at the edges of its frame. She faces the raid, so her head reaches far to
-	-- the left of her body: the frame is much wider than the lair's right side, around the same
-	-- center (same place, same size), and runs behind the raid (the stage clips the right part).
+	-- A model is cut off at the edges of its frame, and she faces the raid with her head far to the
+	-- left of her body. So the frame is wider than the lair's right side (onyW), around the same
+	-- center, and runs behind the raid (the stage clips the right part). The model is scaled to the
+	-- frame's width, so the camera moves back by the same factor: same place, same size, more room.
 	local onyW = width - RAID_X1 + 40
-	onyFrame:SetSize(onyW + 2 * 200, STAGE_H)
+	local frameW = onyW + 2 * 200
+	local onyCam = ONY_CAM * frameW / onyW
+	onyFrame:SetSize(frameW, STAGE_H)
 	onyFrame:SetPoint("CENTER", stage, "TOPLEFT", width + 30 - onyW / 2, -STAGE_H / 2)
 	onyFrame:SetFrameLevel(stage:GetFrameLevel() + 2)
 	local ony = CreateFrame("PlayerModel", nil, onyFrame)
@@ -91,13 +94,13 @@ function View.Create(parent, width, height)
 		onyState.cache = {}
 		pcall(ony.SetDisplayInfo, ony, O.DISPLAYS[index])
 		pcall(ony.SetFacing, ony, -1.15)
-		pcall(ony.SetCamDistanceScale, ony, ONY_CAM)
+		pcall(ony.SetCamDistanceScale, ony, onyCam)
 	end
 	ony:SetScript("OnModelLoaded", function(self)
 		onyState.loaded = true
 		onyState.good = onyState.index
 		pcall(self.SetFacing, self, -1.15)
-		pcall(self.SetCamDistanceScale, self, ONY_CAM)
+		pcall(self.SetCamDistanceScale, self, onyCam)
 		if onyState.anim then pcall(self.SetAnimation, self, onyState.anim) end
 	end)
 	local function OnyAnim(list)
