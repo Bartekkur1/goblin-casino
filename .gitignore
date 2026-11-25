@@ -6,3 +6,7 @@ Desktop.ini
 *.tmp
 .vscode/
 .idea/
+
+# build output
+dist/
+__pycache__/
