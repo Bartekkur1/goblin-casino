@@ -138,7 +138,10 @@ end
 ---------------------------------------------------------------------------
 -- Games
 --   title         shown in chat and on screens
---   Compute       function(bets, rolls, round) -> result with winner, names, total, gain, transfers
+--   Compute       function(bets, rolls, round) -> result with names, total, transfers and either
+--                 winner + gain (one player collects) or loser + gain (one player pays every
+--                 other player `gain`)
+--   loseVerb      for loser games: what happened to the loser ("blew up")
 --   duration      seconds the result is animated before the round is DONE (or function(round))
 --   limitKey      saved setting holding the host's stake limit (or entry fee)
 --   defaultLimit  value used when the setting is empty
@@ -189,7 +192,7 @@ local function Record(round)
 		practice = round.practice or nil,
 		me = U.Me(),                         -- whose point of view ("you") this entry has
 		players = Count(round.bets),
-		pool = res.total, winner = res.winner, transfers = res.transfers,
+		pool = res.total, winner = res.winner, loser = res.loser, transfers = res.transfers,
 		note = def.Describe and def.Describe(round) or nil, -- e.g. the winning murloc's name
 	}
 	while #history > J.MAX_HISTORY do
@@ -401,7 +404,8 @@ local function Finish(round, rolls, subs)
 	round.rolls, round.subs = rolls, subs or {}
 	round.result = def.Compute(round.bets, rolls, round)
 	local res = round.result
-	ns.Log.Add("round", "%s result: winner %s gain %s seed %s rolls {%s}", round.id, res.winner, res.gain, res.seed,
+	ns.Log.Add("round", "%s result: %s %s gain %s seed %s rolls {%s}", round.id, res.loser and "loser" or "winner",
+		res.loser or res.winner, res.gain, res.seed,
 		EncodeMap(rolls, subs))
 	for _, t in ipairs(res.transfers or {}) do
 		ns.Log.Add("round", "  %s pays %s %sg", t.from, t.to, t.amount)
@@ -418,9 +422,24 @@ local function Finish(round, rolls, subs)
 		local res = round.result
 		local me = U.Me()
 		local tag = round.practice and " |cff9d9d9d(practice)|r" or ""
-		ns.Print(U.Short(res.winner) .. " wins " .. U.Gold(res.gain) .. " in " .. def.title .. "!" .. tag)
-		if not round.practice and round.bets[me] and res.winner ~= me then
-			ns.Print("You owe " .. U.Short(res.winner) .. " " .. U.Gold(round.bets[me]) .. ". Open a trade to pay.")
+		if res.loser then
+			-- one player pays everyone else
+			local others = #res.transfers
+			ns.Print(U.Short(res.loser) .. " " .. (def.loseVerb or "lost") .. " in " .. def.title .. " and pays "
+				.. others .. (others == 1 and " player " or " players ") .. U.Gold(res.gain) .. (others == 1 and "!" or " each!") .. tag)
+			if not round.practice and round.bets[me] then
+				if res.loser == me then
+					ns.Print("You owe " .. U.Gold(res.gain) .. " to each of " .. others .. (others == 1 and " player" or " players")
+						.. " (" .. U.Gold(res.gain * others) .. " in total). Open a trade with each to pay.")
+				else
+					ns.Print(U.Short(res.loser) .. " owes you " .. U.Gold(res.gain) .. ".")
+				end
+			end
+		else
+			ns.Print(U.Short(res.winner) .. " wins " .. U.Gold(res.gain) .. " in " .. def.title .. "!" .. tag)
+			if not round.practice and round.bets[me] and res.winner ~= me then
+				ns.Print("You owe " .. U.Short(res.winner) .. " " .. U.Gold(round.bets[me]) .. ". Open a trade to pay.")
+			end
 		end
 		Changed()
 	end)
