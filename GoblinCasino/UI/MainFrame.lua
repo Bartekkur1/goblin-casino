@@ -341,7 +341,7 @@ local function CreateCard(parent, game, w, h, x, y)
 	status:SetPoint("BOTTOMLEFT")
 	status.label:ClearAllPoints()
 	status.label:SetPoint("RIGHT", play, "LEFT", -20, 1)
-	game.statusPill, game.playButton = status, play
+	game.statusPill, game.playButton, game.readyColor = status, play, statusColor
 
 	if game.soon then
 		play:SetUnavailable()
@@ -451,11 +451,14 @@ end
 ---------------------------------------------------------------------------
 -- Window
 ---------------------------------------------------------------------------
+local ANCHORS = { TOPLEFT = true, TOP = true, TOPRIGHT = true, LEFT = true, CENTER = true, RIGHT = true,
+	BOTTOMLEFT = true, BOTTOM = true, BOTTOMRIGHT = true }
+
 local function RestorePosition(f)
 	f:ClearAllPoints()
 	local p = ns.db and ns.db.window
-	if type(p) == "table" and type(p.point) == "string" and tonumber(p.x) and tonumber(p.y) then
-		f:SetPoint(p.point, UIParent, type(p.relPoint) == "string" and p.relPoint or p.point, tonumber(p.x), tonumber(p.y))
+	if type(p) == "table" and ANCHORS[p.point] and tonumber(p.x) and tonumber(p.y) then
+		f:SetPoint(p.point, UIParent, ANCHORS[p.relPoint] and p.relPoint or p.point, tonumber(p.x), tonumber(p.y))
 	else
 		f:SetPoint("CENTER")
 	end
@@ -606,7 +609,7 @@ function Main:UpdateLobby()
 					game.playButton:SetLabel("OPEN")
 				else
 					status = round.phase == "BETTING" and (J.Game(round).fixed and "ENTRIES OPEN" or "BETS OPEN") or "IN PROGRESS"
-					game.playButton:SetLabel(J.MyBet() and "OPEN" or "JOIN")
+					game.playButton:SetLabel((J.MyBet() or round.phase ~= "BETTING") and "OPEN" or "JOIN")
 				end
 			else
 				if round then
@@ -618,7 +621,12 @@ function Main:UpdateLobby()
 				end
 				game.playButton:SetLabel("PLAY")
 			end
+			local color = (status == "READY" and game.readyColor)
+				or ((status == "NEEDS A GROUP" or status == "AFTER THIS ROUND") and C.textDim)
+				or (status == "PRACTICE MODE" and C.orange) or C.gold
 			game.statusPill.label:SetText(status)
+			game.statusPill.label:SetTextColor(T.Unpack(color))
+			game.statusPill.back:SetColorTexture(color[1], color[2], color[3], 0.16)
 		end
 	end
 	if round and round.phase == "SETUP" then

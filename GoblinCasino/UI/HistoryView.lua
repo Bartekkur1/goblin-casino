@@ -200,12 +200,13 @@ function View.Create(parent, width, height)
 			right.meta:SetText("")
 			backToStandings:Show()
 			local rows = {}
+			local who = selected.me or me -- the character that played it (maybe not this one)
 			for _, t in ipairs(selected.transfers or {}) do
 				rows[#rows + 1] = {
 					color = GAME_COLOR[selected.game] or C.gold,
 					left = U.Short(t.from), mid = "pays " .. U.Short(t.to), right = U.Gold(t.amount),
-					mine = t.from == me or t.to == me,
-					leftColor = t.from == me and C.gold or C.text,
+					mine = t.from == who or t.to == who,
+					leftColor = t.from == who and C.gold or C.text,
 				}
 			end
 			side:SetData(rows)

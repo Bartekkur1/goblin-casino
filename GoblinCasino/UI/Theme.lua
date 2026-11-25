@@ -231,7 +231,7 @@ function T.Pill(parent, text, bg, fg)
 	local back = T.Solid(f, bg)
 	back:SetPoint("TOPLEFT", fs, "TOPLEFT", -10, 6)
 	back:SetPoint("BOTTOMRIGHT", fs, "BOTTOMRIGHT", 10, -6)
-	f.label = fs
+	f.label, f.back = fs, back
 	return f
 end
 
