@@ -27,7 +27,8 @@ events:RegisterEvent("ADDON_LOADED")
 events:SetScript("OnEvent", function(self, _, name)
 	if name ~= ADDON then return end
 	self:UnregisterEvent("ADDON_LOADED")
-	GoblinCasinoDB = GoblinCasinoDB or {}
+	if type(GoblinCasinoDB) ~= "table" then GoblinCasinoDB = {} end
+	if type(GoblinCasinoDB.history) ~= "table" then GoblinCasinoDB.history = nil end
 	ApplyDefaults(GoblinCasinoDB, DEFAULTS)
 	ns.db = GoblinCasinoDB
 	ns.Log.Init(ns.db)

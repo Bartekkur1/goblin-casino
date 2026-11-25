@@ -14,6 +14,9 @@
 --                  L^id^name=amt,...         host locks the bets (the final list)
 --                  R^id^name=roll[*],...     host publishes the rolls (* = substitute roll by host)
 --                  C^id                      host cancels
+--                  Q                         "I just logged in or reloaded: what's going on?"
+--                  Y^id^game^limit^phase^bets^rolls^for^secondsLeft
+--                                            the host's answer to Q, for one player (`for`)
 -- The winner comes from a seed made of everyone's /roll after the bets are locked, so nobody can
 -- know it in advance. Each client computes it alone and checks the host's roll list against the
 -- rolls it saw in chat.
@@ -184,9 +187,13 @@ end
 local function Record(round)
 	local res = round.result
 	local def = J.Game(round)
+	local history = ns.db.history
+	-- the same round can finish twice on this client when it was picked up again after a /reload
+	for i = #history, math.max(1, #history - 5), -1 do
+		if history[i].id == round.id and history[i].me == U.Me() then return end
+	end
 	J.session.rounds = J.session.rounds + 1
 	J.session.pool = J.session.pool + res.total
-	local history = ns.db.history
 	history[#history + 1] = {
 		time = time(), game = round.game, id = round.id, host = round.host,
 		practice = round.practice or nil,
@@ -307,6 +314,14 @@ end
 function J.Lock()
 	local round = Active()
 	if not round or not J.IsHost(round) or round.phase ~= "BETTING" then return false end
+	if not round.practice then
+		-- bettors who left the group are dropped now; while a name is still loading we can't tell
+		local roster, incomplete = U.GroupRoster()
+		if incomplete then return false, "Someone in the group is still loading. Try again in a moment." end
+		for name in pairs(round.bets) do
+			if not roster[name] then round.bets[name] = nil end
+		end
+	end
 	local n = 0
 	for _ in pairs(round.bets) do n = n + 1 end
 	if n < 2 then return false, "At least two players have to place a bet." end
@@ -316,10 +331,17 @@ function J.Lock()
 	StartRolling(round)
 	if round.practice then
 		BotsRoll(round)
+		C_Timer.After(J.ROLL_SECONDS, function() J.HostDeadline(round) end)
 	else
 		Comm.Send("L", round.id, EncodeMap(round.bets))
+		-- the players' time starts when the list has actually gone out (it can wait in the queue)
+		Comm.Flushed(function()
+			if J.round ~= round or round.phase ~= "ROLLING" then return end
+			round.deadline = GetTime() + J.ROLL_SECONDS
+			C_Timer.After(J.ROLL_SECONDS, function() J.HostDeadline(round) end)
+			Changed()
+		end)
 	end
-	C_Timer.After(J.ROLL_SECONDS, function() J.HostDeadline(round) end)
 	Changed()
 	return true
 end
@@ -412,7 +434,8 @@ local function Finish(round, rolls, subs)
 	end
 	round.phase = "SPINNING"
 	round.spinStart = GetTime()
-	Record(round)
+	local recorded, err = pcall(Record, round)
+	if not recorded then ns.Log.Error("history", err) end
 	Changed()
 	local duration = type(def.duration) == "function" and def.duration(round) or def.duration
 	round.duration = duration
@@ -500,7 +523,9 @@ function J.HostDeadline(round)
 		round.subStart = #round.hostExtra
 		calls = #missing + (selfMissing and 1 or 0)
 		for i = 1, calls do
-			C_Timer.After((i - 1) * 0.6, Rolls.Roll)
+			C_Timer.After((i - 1) * 0.6, function()
+				if J.round == round and round.subbing then Rolls.Roll() end
+			end)
 		end
 	end
 	Changed()
@@ -705,7 +730,7 @@ local function CheckRoster()
 	end
 	local roster, incomplete = U.GroupRoster()
 	if incomplete then return end -- some names aren't known yet (loading); look again next time
-	if not J.IsHost(round) and not roster[round.host] then
+	if not J.IsHost(round) and not (roster[round.host] and U.IsOnline(round.host)) then
 		-- names can be briefly missing while someone zones; make sure before cancelling
 		if hostCheckPending then return end
 		hostCheckPending = true
@@ -713,8 +738,8 @@ local function CheckRoster()
 			hostCheckPending = false
 			if J.round ~= round or not Cancellable(round) then return end
 			local again, unsure = U.GroupRoster()
-			if unsure or again[round.host] then return end
-			CancelLocal(round, U.Short(round.host) .. " (host) left the group. Round cancelled, nobody pays.")
+			if unsure or (again[round.host] and U.IsOnline(round.host)) then return end
+			CancelLocal(round, U.Short(round.host) .. " (host) left the group or went offline. Round cancelled, nobody pays.")
 		end)
 		return
 	end
@@ -730,9 +755,77 @@ local function CheckRoster()
 	end
 end
 
+---------------------------------------------------------------------------
+-- Back after /reload or a relog: this client forgot the round, but the host still counts this
+-- player's bet. It asks (Q) and the host answers with the round as it stands (Y, meant for that
+-- one player; everyone else ignores it). A Q from our round's host means the host forgot it.
+---------------------------------------------------------------------------
+local syncAsked = 0
+
+function J.AskSync()
+	if not Comm.Channel() or Active() then return end
+	syncAsked = GetTime()
+	Comm.Send("Q")
+end
+
+Comm.On("Q", function(_, sender)
+	local round = J.round
+	if not round or round.practice then return end
+	if J.IsHost(round) then
+		local phase = round.phase
+		local recent = (phase == "SPINNING" or phase == "DONE") and round.spinStart and GetTime() - round.spinStart < 120
+		if not (Cancellable(round) or recent) then return end
+		-- once the bets are locked, only players in the round need it
+		if phase ~= "BETTING" and not round.bets[sender] then return end
+		local rolls, marks = round.seen or {}, nil
+		if round.rolls then rolls, marks = round.rolls, round.subs end
+		local left = round.deadline and math.max(0, math.floor(round.deadline - GetTime())) or 0
+		Comm.Send("Y", round.id, round.game, round.limit, phase, EncodeMap(round.bets), EncodeMap(rolls, marks), sender, left)
+	elseif sender == round.host and Cancellable(round) then
+		CancelLocal(round, U.Short(sender) .. " (host) reloaded the game, so the round is gone. Nobody pays.")
+	end
+end)
+
+Comm.On("Y", function(f, sender)
+	if f[8] ~= U.Me() or syncAsked == 0 or GetTime() - syncAsked > 30 or Active() then return end
+	local id, game, limit, phase = f[2], f[3], tonumber(f[4]), f[5]
+	local def = J.games[game or ""]
+	if not def then return end
+	syncAsked = 0
+	local bets = DecodeMap(f[6])
+	local rolls, marks = DecodeMap(f[7])
+	local me = U.Me()
+	local round = { id = id, game = game, host = sender, practice = false, limit = limit or def.defaultLimit,
+		phase = "BETTING", bets = bets, myIntent = bets[me] }
+	J.round = round
+	ns.Log.Add("round", "picked up round %s from %s after a reload (phase %s)", id, sender, tostring(phase))
+	if bets[me] then
+		ns.Print("You're back in " .. U.Short(sender) .. "'s " .. def.title .. " round.")
+	else
+		ns.Print(U.Short(sender) .. " has " .. def.title .. " open. Type |cffffd100/casino|r to join.")
+	end
+	if phase ~= "BETTING" then
+		StartRolling(round)
+		round.deadline = GetTime() + (tonumber(f[9]) or 0)
+		if phase == "ROLLING" then
+			for name, roll in pairs(rolls) do round.seen[name] = roll end
+		else
+			Finish(round, rolls, marks)
+		end
+	end
+	if ns.Main and ns.Main.OnRoundOpened then ns.Main:OnRoundOpened() end
+	Changed()
+end)
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("GROUP_ROSTER_UPDATE")
-events:SetScript("OnEvent", function()
+events:RegisterEvent("UNIT_CONNECTION")
+events:RegisterEvent("PLAYER_ENTERING_WORLD")
+events:SetScript("OnEvent", function(_, event, isLogin, isReload)
+	if event == "PLAYER_ENTERING_WORLD" then
+		if isLogin or isReload then C_Timer.After(4, J.AskSync) end
+		return
+	end
 	local ok, err = pcall(CheckRoster)
 	if not ok then ns.Log.Error("roster check", err) end
 end)
