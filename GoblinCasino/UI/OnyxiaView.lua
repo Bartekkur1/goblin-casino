@@ -76,8 +76,12 @@ function View.Create(parent, width, height)
 
 	-- Onyxia
 	local onyFrame = CreateFrame("Frame", nil, stage)
-	onyFrame:SetSize(width - RAID_X1 + 40, STAGE_H)
-	onyFrame:SetPoint("TOPRIGHT", 30, 0)
+	-- A model is cut off at the edges of its frame. She faces the raid, so her head reaches far to
+	-- the left of her body: the frame is much wider than the lair's right side, around the same
+	-- center (same place, same size), and runs behind the raid (the stage clips the right part).
+	local onyW = width - RAID_X1 + 40
+	onyFrame:SetSize(onyW + 2 * 200, STAGE_H)
+	onyFrame:SetPoint("CENTER", stage, "TOPLEFT", width + 30 - onyW / 2, -STAGE_H / 2)
 	onyFrame:SetFrameLevel(stage:GetFrameLevel() + 2)
 	local ony = CreateFrame("PlayerModel", nil, onyFrame)
 	ony:SetAllPoints()
