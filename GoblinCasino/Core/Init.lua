@@ -5,6 +5,7 @@ local DEFAULTS = {
 	minimap = { hide = false, angle = 215 },
 	stakeLimit = 100,
 	history = {},
+	ledger = {}, -- [me] = { entries, rounds, outbox, seen } (see Core/Ledger.lua)
 	-- window = { point, relPoint, x, y } once the window has been moved
 }
 
