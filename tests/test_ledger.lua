@@ -63,6 +63,40 @@ test("the same round counts once", function()
 	eq(L.Balance("Grom"), -30 * G, "balance after reload")
 end)
 
+test("old round ids are dropped, recent ones kept", function()
+	fresh()
+	local now = c.env.GetServerTime()
+	local old = tostring(now - L.ROUND_KEEP - 60) .. "123"
+	local recent = tostring(now - 60) .. "456"
+	local rounds = L.Book().rounds
+	rounds[old], rounds[recent], rounds.r9 = true, true, true
+	c:Reload() -- pruning runs once a session
+	L = c.ns.Ledger
+	L.AddRound(round("r1", "Bika", "Grom", 5))
+	rounds = L.Book().rounds
+	eq(rounds[old], nil, "old id")
+	check(rounds[recent], "recent id")
+	check(rounds.r9, "id without a time")
+	check(rounds.r1, "the new round")
+end)
+
+test("rounds and trades keep a known mismatch in step", function()
+	fresh()
+	L.mismatch = {}
+	L.AddRound(round("r1", "Grom", "Bika", 30))
+	L.reported.Grom = 20 * G
+	L.mismatch.Grom = { mine = 30 * G, theirs = 20 * G }
+	L.AddRound(round("r2", "Bika", "Grom", 5))
+	eq(L.reported.Grom, 15 * G, "reported after the round")
+	eq(L.mismatch.Grom.mine, 25 * G, "mine after the round")
+	eq(L.mismatch.Grom.theirs, 15 * G, "theirs after the round")
+	L.AddTrade("Grom", 0, 25 * G)
+	eq(L.reported.Grom, -10 * G, "reported after the trade")
+	eq(L.mismatch.Grom.mine, 0, "mine after the trade")
+	eq(L.mismatch.Grom.theirs, -10 * G, "theirs after the trade")
+	L.mismatch = {}
+end)
+
 test("rounds I didn't play don't count", function()
 	fresh()
 	eq(L.AddRound(round("r1", "Zix", "Grom", 30)), nil, "result")

@@ -218,9 +218,13 @@ function View.Create(parent, width, height)
 	tradeBtn:SetScript("OnClick", function()
 		local who = selected
 		if not who then return end
+		-- a group member, or the player I have targeted (settling up often happens after the group is gone)
 		local unit = W.UnitFor(who)
+		if (not unit or unit == "player") and UnitIsPlayer("target") and U.Canonical(UnitName("target")) == who then
+			unit = "target"
+		end
 		if not unit or unit == "player" or not UnitIsVisible(unit) then
-			ns.Print(U.Short(who) .. " isn't in your group or nearby.")
+			ns.Print("Target " .. U.Short(who) .. " or group up, and stand next to them to trade.")
 			return
 		end
 		-- when I owe them, the trade watcher fills in the gold once the window opens

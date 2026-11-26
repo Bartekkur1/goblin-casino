@@ -145,6 +145,28 @@ local function Track(who, reported)
 	end
 end
 
+-- A round or trade moved my tab with `who`, and their addon records the same one: what it last
+-- reported moves with it, so a known mismatch keeps its gap instead of going stale.
+local function Shift(who, copper)
+	if L.reported[who] then L.reported[who] = L.reported[who] + copper end
+	local m = L.mismatch[who]
+	if m then m.mine, m.theirs = m.mine + copper, m.theirs + copper end
+end
+
+-- Round ids start with the server time; a round can't finish again days later, so old ids go
+-- (once a session) to keep the saved list small.
+L.ROUND_KEEP = 30 * 86400
+local pruned = false
+local function PruneRounds(book)
+	if pruned then return end
+	pruned = true
+	local cutoff = GetServerTime() - L.ROUND_KEEP
+	for id in pairs(book.rounds) do
+		local t = tonumber(tostring(id):sub(1, -4))
+		if t and t < cutoff then book.rounds[id] = nil end
+	end
+end
+
 -- How much of `copper` a forgive takes off a debt of `debt` (never past zero).
 local function Forgiven(copper, debt)
 	return math.min(copper, math.max(0, debt))
@@ -193,6 +215,7 @@ function L.AddRound(round)
 	local transfers = round.result and round.result.transfers
 	if not transfers then return nil end
 	local book = L.Book()
+	PruneRounds(book)
 	if round.id and book.rounds[round.id] then return nil end
 	local me = U.Me()
 	local changes = {}
@@ -210,6 +233,7 @@ function L.AddRound(round)
 	if round.id then book.rounds[round.id] = true end
 	for _, ch in ipairs(changes) do
 		Add(ch.who, { kind = "round", amount = ch.amount, id = round.id, game = round.game })
+		Shift(ch.who, ch.amount)
 	end
 	Changed()
 	return changes
@@ -222,6 +246,7 @@ function L.AddTrade(who, gave, got)
 	gave, got = gave or 0, got or 0
 	if gave == got then return end
 	Add(who, { kind = "trade", amount = gave - got, gave = gave, got = got })
+	Shift(who, gave - got)
 	Changed()
 	return true
 end

@@ -232,8 +232,12 @@ local function CreateHeader(f, body)
 		GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
 		GameTooltip:SetText("Your tab")
 		GameTooltip:AddLine("Who owes whom from real rounds, until it's paid.", 1, 1, 1, true)
-		if owe > 0 then GameTooltip:AddLine("You owe " .. ns.Ledger.FormatCopper(owe), 1, 0.42, 0.42) end
-		if owed > 0 then GameTooltip:AddLine("You're owed " .. ns.Ledger.FormatCopper(owed), 0.3, 1, 0.6) end
+		if J.round and J.round.phase == "SPINNING" then
+			GameTooltip:AddLine("Updates when the round ends.", 0.62, 0.56, 0.75)
+		else
+			if owe > 0 then GameTooltip:AddLine("You owe " .. ns.Ledger.FormatCopper(owe), 1, 0.42, 0.42) end
+			if owed > 0 then GameTooltip:AddLine("You're owed " .. ns.Ledger.FormatCopper(owed), 0.3, 1, 0.6) end
+		end
 		GameTooltip:Show()
 	end)
 	tab:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -598,7 +602,10 @@ local function Create()
 	ledger:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
 	f.views = { lobby = lobby, wheel = wheel, derby = derby, sapper = sapper, onyxia = onyxia,
 		brewfest = brewfest, history = history, ledger = ledger }
-	J.OnChange(function() Main:UpdateLobby() end)
+	J.OnChange(function()
+		Main:UpdateLobby()
+		Main:UpdateTab() -- catches up once a spin has ended
+	end)
 	ns.Ledger.OnChange(function() Main:UpdateTab() end)
 
 	f:RegisterEvent("PLAYER_MONEY")
@@ -678,10 +685,15 @@ function Main:OnRoundOpened()
 	end
 end
 
--- The header's TAB label: red while I owe anyone, green while I'm only owed.
+-- The round's result goes on the tab when the spin starts; the header must not give it away.
+local function Spinning()
+	return J.round ~= nil and J.round.phase == "SPINNING"
+end
+
+-- The header's TAB label: red while I owe anyone, green while I'm only owed (held during a spin).
 function Main:UpdateTab()
 	local f = self.frame
-	if not f or not ns.db then return end
+	if not f or not ns.db or Spinning() then return end
 	local owe, owed = ns.LedgerView.Totals()
 	local color = (owe > 0 and hex("ff6b6b")) or (owed > 0 and C.green) or C.text
 	f.tabButton.label:SetTextColor(T.Unpack(color))

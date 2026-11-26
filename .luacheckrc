@@ -36,7 +36,7 @@ read_globals = {
 	"IsInGroup", "IsInRaid", "LE_PARTY_CATEGORY_HOME", "LE_PARTY_CATEGORY_INSTANCE",
 	"Minimap", "NO", "YES", "PlaySound", "PlaySoundFile", "SOUNDKIT", "RANDOM_ROLL_RESULT", "RandomRoll",
 	"StaticPopup_Show", "UIParent", "UISpecialFrames", "UNKNOWNOBJECT",
-	"UnitExists", "UnitIsConnected", "UnitIsVisible", "UnitName",
+	"UnitExists", "UnitIsConnected", "UnitIsPlayer", "UnitIsVisible", "UnitName",
 	"GetPlayerTradeMoney", "GetTargetTradeMoney", "GetTradePlayerItemInfo", "GetTradeTargetItemInfo",
 	"InitiateTrade", "SetTradeMoney", "ERR_TRADE_COMPLETE", "LE_GAME_ERR_TRADE_COMPLETE",
 	"date", "time", "debugstack", "geterrorhandler", "seterrorhandler", "issecretvalue",
