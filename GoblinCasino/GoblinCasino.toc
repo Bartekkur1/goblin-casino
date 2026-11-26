@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: |cffffd84dGoblin|r |cffff3fa4Casino|r
 ## Notes: Colorful gold-wagering games for your raid, party or guild. /casino
-## Version: 0.5.0
+## Version: 0.5.1
 ## IconTexture: Interface\Icons\INV_Misc_Coin_01
 ## SavedVariables: GoblinCasinoDB
 ## X-Curse-Project-ID: 1830691
