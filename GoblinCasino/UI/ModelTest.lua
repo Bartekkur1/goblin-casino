@@ -11,7 +11,7 @@ ns.ModelTest = MT
 -- From memory; some may be wrong, that's what this window is for.
 local CANDIDATES = {
 	-- the ogre croupier of Ogre's Wheel (WheelView's OGRES, in the same order)
-	{ "C", 5229 }, { "C", 1178 }, { "C", 2562 }, { "C", 11501 }, { "C", 18069 },
+	{ "D", 655 }, { "D", 1122 }, { "D", 415 }, { "C", 5229 }, { "C", 1178 },
 	{ "D", 8570 }, { "D", 11380 }, -- Onyxia, Nefarian (for Onyxia's Deep Breath)
 	-- murlocs and guests of the derby
 	{ "D", 441 }, { "D", 478 }, { "D", 486 }, { "D", 487 }, { "D", 506 }, { "D", 507 }, { "D", 524 },
