@@ -108,6 +108,32 @@ for _, game in ipairs(GAMES) do
 		end
 	end)
 
+	test(game .. ": after a real round the players' tabs mirror each other", function()
+		local w, cs = Group(3)
+		Open(w, cs[1], game, 50)
+		BetAll(w, cs, game, 50)
+		Lock(w, cs[1])
+		RollAll(w, cs)
+		local round = Finish(w, cs)
+		local sum = 0
+		for _, a in ipairs(cs) do
+			for _, b in ipairs(cs) do
+				if a ~= b then
+					local an, bn = a.U.Me(), b.U.Me()
+					eq(a.ns.Ledger.Balance(bn), -b.ns.Ledger.Balance(an),
+						an .. "'s tab with " .. bn .. " mirrors theirs")
+					sum = sum + a.ns.Ledger.Balance(bn)
+				end
+			end
+		end
+		eq(sum, 0, "all the tabs together")
+		local res = round.result
+		local payer = res.loser or (res.transfers[1] and res.transfers[1].from)
+		for _, c in ipairs(cs) do
+			if c.U.Me() == payer then check(c:Printed("You owe"), c.name .. " wasn't told to pay") end
+		end
+	end)
+
 	test(game .. ": practice round with bots", function()
 		local w = World.new()
 		local c = w:AddClient("Solo")
@@ -122,6 +148,7 @@ for _, game in ipairs(GAMES) do
 		eq(c.J.round.phase, "DONE", "phase")
 		local last = c:History()[#c:History()]
 		check(last and last.practice, "practice round recorded as practice")
+		eq(#c.ns.Ledger.People(), 0, "practice rounds stay off the tab")
 		NoErrors(w)
 	end)
 end
@@ -315,5 +342,96 @@ test("brewfest: a mug can't be drunk before the last one arrived, nor after stop
 	w:Run(0.5)
 	check(Brew(cs[1]).Stop(), "stop")
 	check(not Brew(cs[1]).Drink(), "a mug after stopping")
+	NoErrors(w)
+end)
+
+---------------------------------------------------------------------------
+-- The ledger between two addons: confirmations reach the payer, tabs are compared
+---------------------------------------------------------------------------
+local G = 10000 -- copper per gold
+
+-- One round in which Hymel lost `gold` to Bika, put on the tabs of `clients` (default: everyone).
+local function Debt(cs, id, gold, clients)
+	local round = { id = id, game = "wheel", result = { transfers = { { from = "Hymel", to = "Bika", amount = gold } } } }
+	for _, c in ipairs(clients or cs) do check(c.ns.Ledger.AddRound(round), c.name .. " didn't record the round") end
+end
+
+test("received reaches the payer", function()
+	local w, cs = Group(2)
+	local Lb, Lh = cs[1].ns.Ledger, cs[2].ns.Ledger
+	Debt(cs, "t4a", 30)
+	eq(Lb.Balance("Hymel"), 30 * G, "Bika's tab before")
+	eq(Lh.Balance("Bika"), -30 * G, "Hymel's tab before")
+	check(Lb.Received("Hymel", 30 * G), "received")
+	w:Run(2)
+	eq(Lb.Balance("Hymel"), 0, "Bika's tab")
+	eq(Lh.Balance("Bika"), 0, "Hymel's tab")
+	eq(#Lb.Book().outbox, 0, "Bika's outbox")
+	check(cs[2]:Printed("Bika confirmed your payment of 30"), "Hymel wasn't told")
+	NoErrors(w)
+end)
+
+test("received waits until the payer is back in the group", function()
+	local w, cs = Group(2)
+	local Lb, Lh = cs[1].ns.Ledger, cs[2].ns.Ledger
+	Debt(cs, "t4b", 30)
+	cs[2].inGroup = false
+	w:RosterChanged()
+	check(Lb.Received("Hymel", 30 * G), "received")
+	w:Run(2)
+	eq(Lh.Balance("Bika"), -30 * G, "Hymel's tab while away")
+	eq(#Lb.Book().outbox, 1, "the notice waits")
+	-- back in the group: the notice goes out again, and twice more by hand before any answer is back
+	local delivered = 0
+	w.drop = function(from, to, msg)
+		if to == cs[2] and msg:sub(1, 3) == "=G^" then delivered = delivered + 1 end
+		return false -- nothing is dropped, only counted
+	end
+	cs[2].inGroup = true
+	w:RosterChanged()
+	Lb.ResendOutbox()
+	Lb.ResendOutbox()
+	w:Run(2)
+	w.drop = nil
+	check(delivered >= 2, "the notice arrived " .. delivered .. " time(s)")
+	eq(Lh.Balance("Bika"), 0, "Hymel's tab")
+	eq(Lb.Balance("Hymel"), 0, "Bika's tab")
+	eq(#Lb.Book().outbox, 0, "Bika's outbox")
+	NoErrors(w)
+end)
+
+test("forgive fixes a round only the debtor saw", function()
+	local w, cs = Group(2)
+	local Lb, Lh = cs[1].ns.Ledger, cs[2].ns.Ledger
+	Debt(cs, "t4c", 30, { cs[2] })
+	eq(Lb.Known("Hymel"), false, "Bika never saw the round")
+	check(Lh.Compare("Bika"), "compare")
+	w:Run(2)
+	eq(Lb.reported.Hymel, 30 * G, "what Hymel's addon told Bika")
+	check(Lb.mismatch.Hymel, "Bika sees no mismatch")
+	check(Lh.mismatch.Bika, "Hymel sees no mismatch")
+	check(cs[1]:Printed("Hymel's addon says Hymel owes you 30"), "Bika wasn't told")
+	check(cs[2]:Printed("Bika's addon says you're even, yours says you owe 30"), "Hymel wasn't told")
+	check(Lb.Forgive("Hymel", 30 * G), "forgive")
+	w:Run(2)
+	eq(Lh.Balance("Bika"), 0, "Hymel's tab")
+	eq(Lb.Balance("Hymel"), 0, "Bika's tab")
+	check(cs[2]:Printed("Bika forgave you 30"), "Hymel wasn't told")
+	eq(Lb.mismatch.Hymel, nil, "Bika's mismatch after the forgive")
+	eq(Lh.mismatch.Bika, nil, "Hymel's mismatch after the forgive")
+	eq(#Lb.Book().outbox, 0, "Bika's outbox")
+	NoErrors(w)
+end)
+
+test("matching tabs report no mismatch", function()
+	local w, cs = Group(2)
+	local Lb, Lh = cs[1].ns.Ledger, cs[2].ns.Ledger
+	Debt(cs, "t4d", 30)
+	check(Lh.Compare("Bika"), "compare")
+	w:Run(2)
+	eq(next(Lb.mismatch), nil, "Bika's mismatches")
+	eq(next(Lh.mismatch), nil, "Hymel's mismatches")
+	eq(Lb.reported.Hymel, 30 * G, "what Hymel's addon told Bika")
+	eq(Lh.reported.Bika, -30 * G, "what Bika's addon told Hymel")
 	NoErrors(w)
 end)

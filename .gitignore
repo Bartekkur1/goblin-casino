@@ -10,3 +10,7 @@ Desktop.ini
 # build output
 dist/
 __pycache__/
+
+# Claude working notes (specs, plans), kept locally only
+docs/superpowers/
+.superpowers/

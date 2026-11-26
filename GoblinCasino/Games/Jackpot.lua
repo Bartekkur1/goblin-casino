@@ -198,6 +198,9 @@ local function Record(round)
 	for i = #history, math.max(1, #history - 5), -1 do
 		if history[i].id == round.id and history[i].me == U.Me() then return end
 	end
+	-- a ledger problem must not cost the history entry
+	local ok, tab = pcall(ns.Ledger.AddRound, round)
+	if ok then round.tab = tab else ns.Log.Error("ledger", tab) end
 	J.session.rounds = J.session.rounds + 1
 	J.session.pool = J.session.pool + res.total
 	history[#history + 1] = {
@@ -444,6 +447,25 @@ local function RollsText(rolls, subs)
 	return table.concat(parts, ",")
 end
 
+-- What this round did to my tab, one line per person (nothing for practice rounds or bystanders).
+local function PrintTab(round)
+	if round.practice or not round.tab then return end
+	local L = ns.Ledger
+	for _, ch in ipairs(round.tab) do
+		local name = U.Short(ch.who)
+		local total = L.Balance(ch.who)
+		if ch.amount < 0 then
+			local now = total < 0 and ("you owe " .. name .. " " .. L.FormatCopper(total) .. " in total")
+				or (total > 0 and (name .. " owes you " .. L.FormatCopper(total) .. " in total") or "you're square")
+			ns.Print("You owe " .. name .. " " .. L.FormatCopper(ch.amount) .. " (on your tab: " .. now .. ").")
+		else
+			local now = total > 0 and (L.FormatCopper(total) .. " in total")
+				or (total < 0 and ("you owe " .. name .. " " .. L.FormatCopper(total) .. " in total") or "square")
+			ns.Print(name .. " owes you " .. L.FormatCopper(ch.amount) .. " (on your tab: " .. now .. ").")
+		end
+	end
+end
+
 local function Finish(round, rolls, subs)
 	local def = J.Game(round)
 	round.rolls, round.subs = rolls, subs or {}
@@ -466,26 +488,16 @@ local function Finish(round, rolls, subs)
 		if J.round ~= round or round.phase ~= "SPINNING" then return end
 		round.phase = "DONE"
 		local res = round.result
-		local me = U.Me()
 		local tag = round.practice and " |cff9d9d9d(practice)|r" or ""
 		if res.loser then
 			-- one player pays everyone else
 			local others = #res.transfers
 			ns.Print(U.Short(res.loser) .. " " .. (def.loseVerb or "lost") .. " in " .. def.title .. " and pays "
 				.. others .. (others == 1 and " player " or " players ") .. U.Gold(res.gain) .. (others == 1 and "!" or " each!") .. tag)
-			if not round.practice and round.bets[me] then
-				if res.loser == me then
-					ns.Print("You owe " .. U.Gold(res.gain) .. " to each of " .. others .. (others == 1 and " player" or " players")
-						.. " (" .. U.Gold(res.gain * others) .. " in total). Open a trade with each to pay.")
-				else
-					ns.Print(U.Short(res.loser) .. " owes you " .. U.Gold(res.gain) .. ".")
-				end
-			end
+			PrintTab(round)
 		else
 			ns.Print(U.Short(res.winner) .. " wins " .. U.Gold(res.gain) .. " in " .. def.title .. "!" .. tag)
-			if not round.practice and round.bets[me] and res.winner ~= me then
-				ns.Print("You owe " .. U.Short(res.winner) .. " " .. U.Gold(round.bets[me]) .. ". Open a trade to pay.")
-			end
+			PrintTab(round)
 		end
 		Changed()
 	end)

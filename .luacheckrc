@@ -36,7 +36,8 @@ read_globals = {
 	"IsInGroup", "IsInRaid", "LE_PARTY_CATEGORY_HOME", "LE_PARTY_CATEGORY_INSTANCE",
 	"Minimap", "NO", "YES", "PlaySound", "PlaySoundFile", "SOUNDKIT", "RANDOM_ROLL_RESULT", "RandomRoll",
 	"StaticPopup_Show", "UIParent", "UISpecialFrames", "UNKNOWNOBJECT",
-	"UnitExists", "UnitIsConnected", "UnitIsVisible", "UnitName",
+	"UnitExists", "UnitIsConnected", "UnitIsPlayer", "UnitIsVisible", "UnitName",
+	"InitiateTrade",
 	"date", "time", "debugstack", "geterrorhandler", "seterrorhandler", "issecretvalue",
 	"strsplit", "strtrim", "tinsert", "wipe",
 }

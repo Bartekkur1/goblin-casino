@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: |cffffd84dGoblin|r |cffff3fa4Casino|r
 ## Notes: Colorful gold-wagering games for your raid, party or guild. /casino
-## Version: 0.5.1
+## Version: 0.6.0
 ## IconTexture: Interface\Icons\INV_Misc_Coin_01
 ## SavedVariables: GoblinCasinoDB
 ## X-Curse-Project-ID: 1830691
@@ -15,6 +15,7 @@ Core\Init.lua
 Core\Util.lua
 Core\Comm.lua
 Core\Rolls.lua
+Core\Ledger.lua
 UI\Theme.lua
 UI\Widgets.lua
 UI\LogWindow.lua
@@ -32,5 +33,6 @@ UI\SapperView.lua
 UI\OnyxiaView.lua
 UI\BrewfestView.lua
 UI\HistoryView.lua
+UI\LedgerView.lua
 UI\ModelTest.lua
 UI\MainFrame.lua
