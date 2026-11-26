@@ -108,6 +108,32 @@ for _, game in ipairs(GAMES) do
 		end
 	end)
 
+	test(game .. ": after a real round the players' tabs mirror each other", function()
+		local w, cs = Group(3)
+		Open(w, cs[1], game, 50)
+		BetAll(w, cs, game, 50)
+		Lock(w, cs[1])
+		RollAll(w, cs)
+		local round = Finish(w, cs)
+		local sum = 0
+		for _, a in ipairs(cs) do
+			for _, b in ipairs(cs) do
+				if a ~= b then
+					local an, bn = a.U.Me(), b.U.Me()
+					eq(a.ns.Ledger.Balance(bn), -b.ns.Ledger.Balance(an),
+						an .. "'s tab with " .. bn .. " mirrors theirs")
+					sum = sum + a.ns.Ledger.Balance(bn)
+				end
+			end
+		end
+		eq(sum, 0, "all the tabs together")
+		local res = round.result
+		local payer = res.loser or (res.transfers[1] and res.transfers[1].from)
+		for _, c in ipairs(cs) do
+			if c.U.Me() == payer then check(c:Printed("You owe"), c.name .. " wasn't told to pay") end
+		end
+	end)
+
 	test(game .. ": practice round with bots", function()
 		local w = World.new()
 		local c = w:AddClient("Solo")
@@ -122,6 +148,7 @@ for _, game in ipairs(GAMES) do
 		eq(c.J.round.phase, "DONE", "phase")
 		local last = c:History()[#c:History()]
 		check(last and last.practice, "practice round recorded as practice")
+		eq(#c.ns.Ledger.People(), 0, "practice rounds stay off the tab")
 		NoErrors(w)
 	end)
 end

@@ -76,6 +76,19 @@ function L.People()
 	return names
 end
 
+-- Gold text for an amount of copper (sign ignored): whole gold stays "5g", otherwise "5g 20s 3c".
+function L.FormatCopper(copper)
+	copper = math.abs(copper or 0)
+	local gold = math.floor(copper / L.COPPER)
+	local rest = copper - gold * L.COPPER
+	local silver = math.floor(rest / 100)
+	local cop = rest - silver * 100
+	local text = U.Gold(gold)
+	if silver > 0 then text = text .. " " .. silver .. "s" end
+	if cop > 0 then text = text .. " " .. cop .. "c" end
+	return text
+end
+
 local function Valid(copper)
 	return type(copper) == "number" and copper >= 1 and copper == math.floor(copper)
 end
