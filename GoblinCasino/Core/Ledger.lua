@@ -263,6 +263,12 @@ function L.AddDebt(who, copper)
 	if not who then return false, "Unknown player." end
 	if not Valid(copper) then return false, "Enter an amount." end
 	Add(who, { kind = "adjust", amount = -copper })
+	-- the added debt closes (part of) the gap their addon reported; their figure stays as it was
+	local m = L.mismatch[who]
+	if m then
+		m.mine = m.mine - copper
+		if m.mine == m.theirs then L.mismatch[who] = nil end
+	end
 	Changed()
 	return true
 end
@@ -337,10 +343,15 @@ Comm.On("A", function(f, sender)
 	if not ns.db or not ForMe(f[2]) then return end
 	local id = f[3]
 	local outbox = L.Book().outbox
+	local removed = false
 	for i = #outbox, 1, -1 do
 		local item = outbox[i]
-		if type(item) == "table" and item.id == id and item.to == sender then table.remove(outbox, i) end
+		if type(item) == "table" and item.id == id and item.to == sender then
+			table.remove(outbox, i)
+			removed = true
+		end
 	end
+	if removed then Changed() end
 end)
 
 -- Waiting notices go out again when the group changes or after a loading screen. Roster updates

@@ -110,6 +110,18 @@ test("add debt is against yourself", function()
 	eq(L.Balance("Grom"), -5 * G, "balance")
 end)
 
+test("add debt closes the gap their addon reported", function()
+	fresh()
+	L.mismatch = {}
+	L.AddRound(round("r1", "Bika", "Grom", 20))
+	L.mismatch.Grom = { mine = -20 * G, theirs = -30 * G }
+	check(L.AddDebt("Grom", 4 * G), "part of the gap")
+	eq(L.mismatch.Grom.mine, -24 * G, "gap left")
+	check(L.AddDebt("Grom", 6 * G), "the rest")
+	eq(L.mismatch.Grom, nil, "mismatch gone")
+	eq(L.Balance("Grom"), -30 * G, "balance")
+end)
+
 test("people: I owe first, then owes me, then zero", function()
 	fresh()
 	L.AddRound(round("r1", "Grom", "Bika", 5))

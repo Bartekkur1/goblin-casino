@@ -34,5 +34,6 @@ UI\SapperView.lua
 UI\OnyxiaView.lua
 UI\BrewfestView.lua
 UI\HistoryView.lua
+UI\LedgerView.lua
 UI\ModelTest.lua
 UI\MainFrame.lua

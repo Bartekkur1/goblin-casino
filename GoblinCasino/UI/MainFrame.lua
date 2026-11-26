@@ -221,9 +221,27 @@ local function CreateHeader(f, body)
 		Main:ShowView(Main.view == "history" and (J.round and J.round.game or "lobby") or "history")
 	end)
 
+	-- Tab (who owes whom): red while I owe anyone, green while I'm only owed (Main:UpdateTab)
+	local tab = T.DarkButton(body, "TAB", 84, 36)
+	tab:SetPoint("RIGHT", history, "LEFT", -8, 0)
+	tab:SetScript("OnClick", function()
+		Main:ShowView(Main.view == "ledger" and (J.round and J.round.game or "lobby") or "ledger")
+	end)
+	tab:HookScript("OnEnter", function(self)
+		local owe, owed = ns.LedgerView.Totals()
+		GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+		GameTooltip:SetText("Your tab")
+		GameTooltip:AddLine("Who owes whom from real rounds, until it's paid.", 1, 1, 1, true)
+		if owe > 0 then GameTooltip:AddLine("You owe " .. ns.Ledger.FormatCopper(owe), 1, 0.42, 0.42) end
+		if owed > 0 then GameTooltip:AddLine("You're owed " .. ns.Ledger.FormatCopper(owed), 0.3, 1, 0.6) end
+		GameTooltip:Show()
+	end)
+	tab:HookScript("OnLeave", function() GameTooltip:Hide() end)
+	f.tabButton = tab
+
 	-- Debug log (bug icon): opens the log ready to copy
 	local bug = T.DarkButton(body, "", 36, 36)
-	bug:SetPoint("RIGHT", history, "LEFT", -8, 0)
+	bug:SetPoint("RIGHT", tab, "LEFT", -8, 0)
 	local icon = bug:CreateTexture(nil, "ARTWORK")
 	icon:SetPoint("CENTER")
 	icon:SetSize(24, 24)
@@ -576,9 +594,12 @@ local function Create()
 	brewfest:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
 	local history = ns.HistoryView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
 	history:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
+	local ledger = ns.LedgerView.Create(body, BODY_W, BODY_H - HEADER_H - GAP)
+	ledger:SetPoint("TOPLEFT", 0, -(HEADER_H + GAP))
 	f.views = { lobby = lobby, wheel = wheel, derby = derby, sapper = sapper, onyxia = onyxia,
-		brewfest = brewfest, history = history }
+		brewfest = brewfest, history = history, ledger = ledger }
 	J.OnChange(function() Main:UpdateLobby() end)
+	ns.Ledger.OnChange(function() Main:UpdateTab() end)
 
 	f:RegisterEvent("PLAYER_MONEY")
 	f:RegisterEvent("GROUP_ROSTER_UPDATE")
@@ -590,6 +611,7 @@ local function Create()
 		Main:UpdateMoney()
 		Main:UpdateGroup()
 		Main:UpdateLobby()
+		Main:UpdateTab()
 		Main:ShowView(J.round and J.round.game or "lobby")
 		-- the custom font may load a frame late; measure the gold text again once it has
 		C_Timer.After(0, function() Main:UpdateMoney() end)
@@ -650,8 +672,19 @@ end
 
 -- Somebody else opened a round.
 function Main:OnRoundOpened()
-	-- don't pull the player away from the history screen
-	if self.frame and self.frame:IsShown() and J.round and self.view ~= "history" then self:ShowView(J.round.game) end
+	-- don't pull the player away from the history or tab screen
+	if self.frame and self.frame:IsShown() and J.round and self.view ~= "history" and self.view ~= "ledger" then
+		self:ShowView(J.round.game)
+	end
+end
+
+-- The header's TAB label: red while I owe anyone, green while I'm only owed.
+function Main:UpdateTab()
+	local f = self.frame
+	if not f or not ns.db then return end
+	local owe, owed = ns.LedgerView.Totals()
+	local color = (owe > 0 and hex("ff6b6b")) or (owed > 0 and C.green) or C.text
+	f.tabButton.label:SetTextColor(T.Unpack(color))
 end
 
 function Main:UpdateLobby()
@@ -701,8 +734,10 @@ function Main:UpdateLobby()
 		f.tickerText:SetText(grouped and "The casino is open. The first round is waiting for a host."
 			or "Invite your friends to a party or raid to play. Practice with bots: /casino practice")
 	end
-	-- a game screen without a round goes back to the lobby (history stays open)
-	if self.view ~= "lobby" and self.view ~= "history" and not J.round then self:ShowView("lobby") end
+	-- a game screen without a round goes back to the lobby (history and the tab stay open)
+	if self.view ~= "lobby" and self.view ~= "history" and self.view ~= "ledger" and not J.round then
+		self:ShowView("lobby")
+	end
 end
 
 function Main:ResetPosition()
