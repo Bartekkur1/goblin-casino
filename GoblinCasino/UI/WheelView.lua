@@ -13,14 +13,16 @@ local WHEEL_TOP = -40        -- without the ogre
 local WHEEL_TOP_OGRE = -128  -- lower, so the ogre's head and shoulders show above it
 local RED, ORANGE, DIM = hex("ff6b6b"), hex("ffb347"), hex("9d8fbf")
 
--- The ogre croupier stands behind the wheel: his head, shoulders and arms show around it. Creature
--- (NPC) IDs for SetCreature, the first one that loads is used; /casino models shows them all.
+-- The ogre croupier stands behind the wheel: his head, shoulders and arms show around it. The first
+-- one that loads is used; /casino models shows them all. "D" = creature display ID (SetDisplayInfo),
+-- "C" = creature/NPC ID (SetCreature). Display IDs come first: SetCreature is unreliable on Forever
+-- (the ogre showed, then after a client patch nothing loaded), SetDisplayInfo always works.
 local OGRES = {
-	5229,  -- Gordunni Ogre
-	1178,  -- Mo'grosh Ogre
-	2562,  -- Boulderfist Ogre
-	11501, -- King Gordok
-	18069, -- Mogor
+	{ "D", 655 },   -- ogre (creature/ogre/ogre.m2), the Derby's ogre guest
+	{ "D", 1122 },  -- ogre
+	{ "D", 415 },   -- ogre
+	{ "C", 5229 },  -- Gordunni Ogre
+	{ "C", 1178 },  -- Mo'grosh Ogre
 }
 local OGRE_W, OGRE_H, OGRE_TOP = 320, 340, -6 -- his frame; the feet are hidden behind the wheel
 local OGRE_ANIMS = {             -- the first one the model has is played
@@ -63,10 +65,14 @@ local function CreateOgre(v, onFail)
 
 	local function Try(index)
 		state.index, state.at, state.loaded, state.anim, state.cache = index, GetTime(), false, nil, {}
-		pcall(m.SetCreature, m, OGRES[index])
+		local kind, id = OGRES[index][1], OGRES[index][2]
+		pcall(kind == "D" and m.SetDisplayInfo or m.SetCreature, m, id)
 		pcall(m.SetFacing, m, 0)
 	end
 	m:SetScript("OnModelLoaded", function(self)
+		-- a model can finish loading after the screen closed (index 0): that's no ogre to remember,
+		-- or the next Show would Try(0) (0 is true in Lua) and load nothing
+		if state.index == 0 then return end
 		state.loaded, state.good = true, state.index
 		pcall(self.SetFacing, self, 0)
 		if state.anim then pcall(self.SetAnimation, self, state.anim) end

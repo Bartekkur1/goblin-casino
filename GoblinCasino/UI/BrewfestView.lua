@@ -17,8 +17,9 @@ local WHITE = hex("ffffff")
 local ANIM = { stand = 0, death = 1, dead = 6 }
 local SWIG = { 61, 0 }      -- EmoteEat (a swig from the mug), else stand
 -- who stands at the bar when a player's own character can't be shown (bots, players far away):
--- an ogre (creature ID for SetCreature, the same one as Ogre's Wheel's croupier)
-local STAND_IN = 5229
+-- an ogre (creature display ID for SetDisplayInfo, the same one as Ogre's Wheel's croupier;
+-- SetCreature is unreliable on Forever, SetDisplayInfo always works)
+local STAND_IN = 655
 
 local PHASES = {
 	SETUP = { "SETUP", C.gold },
@@ -173,7 +174,7 @@ function View.Create(parent, width, height)
 		seat.skin = want
 		seat.anim, seat.picks = nil, nil
 		if not (visible and pcall(seat.model.SetUnit, seat.model, unit)) then
-			pcall(seat.model.SetCreature, seat.model, STAND_IN)
+			pcall(seat.model.SetDisplayInfo, seat.model, STAND_IN)
 		end
 		pcall(seat.model.SetFacing, seat.model, seat.facing or 0)
 		pcall(seat.model.SetCamDistanceScale, seat.model, CAM)
