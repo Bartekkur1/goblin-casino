@@ -10,9 +10,9 @@ ns.LedgerView = View
 local RED, DIM, ORANGE = hex("ff6b6b"), hex("9d8fbf"), hex("ff9a3c")
 local LEFT_W = 330
 local KIND_TEXT = {
-	trade = "Trade", received = "Received", forgive = "Forgiven", adjust = "Added by you", carry = "Earlier",
+	received = "Received", forgive = "Forgiven", adjust = "Added by you", carry = "Earlier",
 }
-local KIND_COLOR = { round = C.gold, trade = C.teal, received = C.green, forgive = C.cyan, adjust = ORANGE, carry = DIM }
+local KIND_COLOR = { round = C.gold, received = C.green, forgive = C.cyan, adjust = ORANGE, carry = DIM }
 
 -- One yes/no question before a change to the tab; data is the function that makes the change.
 StaticPopupDialogs["GOBLINCASINO_LEDGER_CONFIRM"] = {
@@ -210,9 +210,18 @@ function View.Create(parent, width, height)
 		end
 	end
 
+	-- Tabs are compared with the partner's addon when their tab is looked at (both get a chat line
+	-- on a mismatch), at most once a minute per person.
+	local compared = {}
+	local function CompareWith(who)
+		if not who or (compared[who] and GetTime() - compared[who] < 60) then return end
+		if L.Compare(who) then compared[who] = GetTime() end
+	end
+
 	people.onClick = function(item)
 		selected = item.who
 		v:Refresh()
+		CompareWith(selected)
 	end
 
 	tradeBtn:SetScript("OnClick", function()
@@ -227,16 +236,8 @@ function View.Create(parent, width, height)
 			ns.Print("Target " .. U.Short(who) .. " or group up, and stand next to them to trade.")
 			return
 		end
-		-- when I owe them, the trade watcher fills in the gold once the window opens
-		local bal = L.Balance(who)
-		local copper = bal < 0 and Amount(-bal) or nil
-		if copper and copper >= 1 then
-			ns.Trade.payWho, ns.Trade.payCopper = who, copper
-		else
-			ns.Trade.payWho, ns.Trade.payCopper = nil, nil
-		end
+		-- the gold is typed in by hand; a trade never changes the tab (the one who's owed clicks RECEIVED)
 		if not pcall(InitiateTrade, unit) then
-			ns.Trade.payWho, ns.Trade.payCopper = nil, nil
 			ns.Print("Couldn't open a trade with " .. U.Short(who) .. ".")
 		end
 	end)
@@ -381,7 +382,10 @@ function View.Create(parent, width, height)
 		UpdateHint()
 	end
 
-	v:SetScript("OnShow", function(self) self:Refresh() end)
+	v:SetScript("OnShow", function(self)
+		self:Refresh()
+		CompareWith(selected)
+	end)
 	L.OnChange(function()
 		if v:IsVisible() then v:Refresh() end
 	end)

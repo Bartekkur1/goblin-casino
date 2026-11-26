@@ -1,4 +1,4 @@
--- The ledger: who owes whom, from finished rounds, trades and manual corrections.
+-- The ledger: who owes whom, from finished rounds and manual corrections.
 local World = require("wow")
 
 local w = World.new()
@@ -80,7 +80,7 @@ test("old round ids are dropped, recent ones kept", function()
 	check(rounds.r1, "the new round")
 end)
 
-test("rounds and trades keep a known mismatch in step", function()
+test("rounds keep a known mismatch in step", function()
 	fresh()
 	L.mismatch = {}
 	L.AddRound(round("r1", "Grom", "Bika", 30))
@@ -90,10 +90,6 @@ test("rounds and trades keep a known mismatch in step", function()
 	eq(L.reported.Grom, 15 * G, "reported after the round")
 	eq(L.mismatch.Grom.mine, 25 * G, "mine after the round")
 	eq(L.mismatch.Grom.theirs, 15 * G, "theirs after the round")
-	L.AddTrade("Grom", 0, 25 * G)
-	eq(L.reported.Grom, -10 * G, "reported after the trade")
-	eq(L.mismatch.Grom.mine, 0, "mine after the trade")
-	eq(L.mismatch.Grom.theirs, -10 * G, "theirs after the trade")
 	L.mismatch = {}
 end)
 
@@ -101,15 +97,6 @@ test("rounds I didn't play don't count", function()
 	fresh()
 	eq(L.AddRound(round("r1", "Zix", "Grom", 30)), nil, "result")
 	eq(L.Known("Grom"), false, "known")
-end)
-
-test("trade pays a debt, overpay flips it", function()
-	fresh()
-	L.AddRound(round("r1", "Bika", "Grom", 30))
-	L.AddTrade("Grom", 20 * G, 0)
-	eq(L.Balance("Grom"), -10 * G, "after first payment")
-	L.AddTrade("Grom", 20 * G, 0)
-	eq(L.Balance("Grom"), 10 * G, "after overpay")
 end)
 
 test("received only by the one who's owed", function()
@@ -161,8 +148,8 @@ test("people: I owe first, then owes me, then zero", function()
 	L.AddRound(round("r1", "Grom", "Bika", 5))
 	L.AddRound(round("r2", "Bika", "Zix", 5))
 	L.AddRound(round("r3", "Bika", "Axe", 5))
-	L.AddTrade("Mog", 1, 0)
-	L.AddTrade("Mog", 0, 1)
+	L.AddRound(round("r4", "Mog", "Bika", 1))
+	check(L.Received("Mog", G), "Mog paid")
 	local p = L.People()
 	eq(table.concat(p, ","), "Axe,Zix,Grom,Mog", "order")
 end)
@@ -176,8 +163,8 @@ test("trimming keeps the balance", function()
 			L.AddRound(round("t" .. i, "Grom", "Bika", gold))
 			expected = expected + gold * G
 		else
-			L.AddTrade("Grom", i, 3)
-			expected = expected + i - 3
+			L.AddDebt("Grom", i)
+			expected = expected - i
 		end
 	end
 	eq(L.Balance("Grom"), expected, "balance")
@@ -200,7 +187,7 @@ test("listeners hear every change", function()
 	local n = 0
 	L.OnChange(function() n = n + 1 end)
 	L.AddDebt("Grom", 1)
-	L.AddTrade("Grom", 5, 0)
+	L.AddRound(round("r1", "Grom", "Bika", 5))
 	eq(n, 2, "calls")
 end)
 

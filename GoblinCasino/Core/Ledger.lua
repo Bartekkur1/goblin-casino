@@ -145,7 +145,7 @@ local function Track(who, reported)
 	end
 end
 
--- A round or trade moved my tab with `who`, and their addon records the same one: what it last
+-- A round moved my tab with `who`, and their addon records the same one: what it last
 -- reported moves with it, so a known mismatch keeps its gap instead of going stale.
 local function Shift(who, copper)
 	if L.reported[who] then L.reported[who] = L.reported[who] + copper end
@@ -237,18 +237,6 @@ function L.AddRound(round)
 	end
 	Changed()
 	return changes
-end
-
--- A completed trade: I gave `gave` copper and got `got` copper.
-function L.AddTrade(who, gave, got)
-	who = U.Canonical(who)
-	if not who then return false, "Unknown player." end
-	gave, got = gave or 0, got or 0
-	if gave == got then return end
-	Add(who, { kind = "trade", amount = gave - got, gave = gave, got = got })
-	Shift(who, gave - got)
-	Changed()
-	return true
 end
 
 -- I confirm that `who` paid me `copper` of what they owed.

@@ -37,8 +37,7 @@ read_globals = {
 	"Minimap", "NO", "YES", "PlaySound", "PlaySoundFile", "SOUNDKIT", "RANDOM_ROLL_RESULT", "RandomRoll",
 	"StaticPopup_Show", "UIParent", "UISpecialFrames", "UNKNOWNOBJECT",
 	"UnitExists", "UnitIsConnected", "UnitIsPlayer", "UnitIsVisible", "UnitName",
-	"GetPlayerTradeMoney", "GetTargetTradeMoney", "GetTradePlayerItemInfo", "GetTradeTargetItemInfo",
-	"InitiateTrade", "SetTradeMoney", "ERR_TRADE_COMPLETE", "LE_GAME_ERR_TRADE_COMPLETE",
+	"InitiateTrade",
 	"date", "time", "debugstack", "geterrorhandler", "seterrorhandler", "issecretvalue",
 	"strsplit", "strtrim", "tinsert", "wipe",
 }

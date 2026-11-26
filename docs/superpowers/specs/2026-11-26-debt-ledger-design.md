@@ -1,6 +1,13 @@
 # Księga długów (Debt Ledger): projekt
 
-Data: 2026-11-26 · Status: do akceptacji
+Data: 2026-11-26 · Status: zaakceptowany, z jedną zmianą po teście w grze (niżej)
+
+> **Zmiana (2026-11-26, decyzja użytkownika): bez automatycznego wykrywania trade'ów.** Trade nie
+> zmienia księgi. Dług zamyka odbiorca przyciskiem RECEIVED (albo FORGIVE). Przycisk TRADE tylko
+> otwiera okno trade'u, złoto wpisuje się ręcznie (`SetTradeMoney` nie istnieje na kliencie Forever).
+> Porównanie kwot z addonem partnera odbywa się, gdy gracz otwiera na ekranie TAB tab tej osoby
+> (najwyżej raz na minutę na osobę), a nie przy otwarciu trade'u. Części niżej o wykrywaniu
+> trade'u, wpisie `trade` i komunikatach „Paid Grom 30g” są nieaktualne.
 
 ## Po co
 

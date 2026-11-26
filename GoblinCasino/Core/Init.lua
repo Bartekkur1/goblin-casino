@@ -91,10 +91,6 @@ SlashCmdList.GOBLINCASINO = function(msg)
 		else
 			ns.Print(err .. " Usage: /casino limit 100")
 		end
-	elseif msg:match("^tradetest%s+%d+$") then
-		-- temporary dev tool: put N gold into the money box when a trade opens
-		ns.Trade.probeMoney = tonumber(msg:match("%d+")) * 10000
-		ns.Print("trade probe: " .. msg:match("%d+") .. " gold goes into the next trade window; events are logged in /casino log.")
 	elseif msg == "help" then
 		ns.Print("/casino - open/close, /casino practice - practice mode with bots on/off, /casino limit N - stake limit when you host, /casino sound - sounds on/off, /casino minimap - minimap icon, /casino reset - window position, /casino log - debug log to copy.")
 	else

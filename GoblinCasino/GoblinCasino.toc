@@ -16,7 +16,6 @@ Core\Util.lua
 Core\Comm.lua
 Core\Rolls.lua
 Core\Ledger.lua
-Core\Trade.lua
 UI\Theme.lua
 UI\Widgets.lua
 UI\LogWindow.lua
